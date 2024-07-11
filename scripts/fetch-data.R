@@ -17,8 +17,7 @@ concept_map <-
 selected_vars <- 
   recoverutils::syn_file_to_df(selectedVarsFileID) %>% 
   mutate(Lower_Bound = suppressWarnings(as.numeric(Lower_Bound)),
-         Upper_Bound = suppressWarnings(as.numeric(Upper_Bound))) %>% 
-  filter(str_detect(Export, "sleep"))
+         Upper_Bound = suppressWarnings(as.numeric(Upper_Bound)))
 
 # Get list of which datasets to use
 dataset_name_filter <- 
