@@ -1,7 +1,4 @@
 default:
-  default_key: "default_value"
-
-staging:
   ontologyFileID: syn52050046
   parquetDirID: syn61250818
   deleteExistingDir: FALSE
@@ -20,7 +17,3 @@ staging:
   downloadLocation: ./temp-parquet
   selectedVarsFileID: syn53503994
   outputConceptsDir: ./temp-output-concepts
-
-prod:
-  inherits: staging
-  synFolderID: syn51406700
