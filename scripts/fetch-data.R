@@ -5,7 +5,7 @@ list2env(
   envir = .GlobalEnv
 )
 
-cat("----Fetching data----\n")
+cat("\n----Fetching data----\n")
 
 login <- synapser::synLogin()
 
@@ -66,4 +66,4 @@ if (!dir.exists(outputConceptsDir)) {
   dir.create(outputConceptsDir)
 }
 
-cat("----Finished fetching data----\n")
+cat("----Finished----\n")
