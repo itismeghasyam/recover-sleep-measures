@@ -1,19 +1,5 @@
 default:
-  ontologyFileID: syn52050046
   parquetDirID: syn61250818
-  deleteExistingDir: FALSE
-  concept_replacements: !expr c("mins" = "minutes",
-                                "avghr" = "averageheartrate",
-                                "spo2" = "spo2_",
-                                "hrv" = "hrv_dailyrmssd",
-                                "restinghr" = "restingheartrate",
-                                "sleepbrth" = "sleepsummarybreath",
-                                "sleepstarttime" = "startdate",
-                                "sleependtime" = "enddate")
-  concept_filter_col: CONCEPT_CD
-  synFolderID: syn52504335
-  s3bucket: recover-main-project
-  s3basekey: main/archive/2024-06-13/
-  downloadLocation: ./temp-parquet
+  archiveVersion: main/archive/2024-06-13/
   selectedVarsFileID: syn53503994
-  outputConceptsDir: ./temp-output-concepts
+  outputDataDir: ./temp-output-data
