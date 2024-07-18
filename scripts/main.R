@@ -1,4 +1,4 @@
-source("~/recover-sleep-summaries/scripts/fetch-data.R")
+source("scripts/fetch-data.R")
 
 fitbit_sleeplogs <- 
   arrow::open_dataset(
