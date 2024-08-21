@@ -24,6 +24,17 @@
 #   pull(MidSleep) %>% 
 #   stats::sd(na.rm = T)
 
+participants <- 
+  arrow::open_dataset(
+    s3$path(stringr::str_subset(dataset_paths, "enrolledparticipants$"))
+  ) %>% 
+  select(c("ParticipantIdentifier",
+           "EnrollmentDate",
+           "CustomFields_InfectionFirstReportedDate")) %>% 
+  collect() %>% 
+  mutate(InfectionFirstReportedDate = as.Date(CustomFields_InfectionFirstReportedDate)) %>% 
+  select(-CustomFields_InfectionFirstReportedDate)
+
 fitbit_sleeplogs <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "sleeplogs$"))
