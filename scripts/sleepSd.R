@@ -1,29 +1,3 @@
-# sleepsd <- function(df, var) {
-#   sd = psych::circadian.sd(
-#     angle = as.numeric(value),
-#     # data = as.numeric(value),
-#     hours = TRUE, 
-#     na.rm = TRUE
-#   )
-# }
-# 
-# sleeplogs_df %>% 
-#   select(ParticipantIdentifier, MidSleep) %>% 
-#   group_by(ParticipantIdentifier) %>% 
-#   reframe(sd = psych::circadian.sd(MidSleep)$sd)
-# 
-# sleeplogs_df %>% 
-#   select(ParticipantIdentifier, MidSleep, StartDate, EndDate, SleepStartTime, SleepEndTime) %>% 
-#   filter(ParticipantIdentifier=="RA11001-00033") %>% 
-#   # pull(MidSleep) %>% 
-#   {psych::circadian.stats(angle = "MidSleep", data = .)}
-# 
-# sleeplogs_df %>% 
-#   select(ParticipantIdentifier, MidSleep) %>% 
-#   filter(ParticipantIdentifier=="RA11001-00033") %>% 
-#   pull(MidSleep) %>% 
-#   stats::sd(na.rm = T)
-
 participants <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "enrolledparticipants$"))
