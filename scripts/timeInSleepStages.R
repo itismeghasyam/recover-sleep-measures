@@ -3,11 +3,6 @@ fitbit_sleeplogs <-
     s3$path(stringr::str_subset(dataset_paths, "sleeplogs$"))
   )
 
-fitbit_sleeplogdetails <- 
-  arrow::open_dataset(
-    s3$path(stringr::str_subset(dataset_paths, "sleeplogdetails"))
-  )
-
 vars <- 
   c("ParticipantIdentifier", 
     "LogId",
