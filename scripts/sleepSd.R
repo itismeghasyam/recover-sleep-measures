@@ -66,8 +66,17 @@ sleeplogs_df <-
   ) %>% 
   filter(IsMainSleep==TRUE)
 
-calculate_stats <- function(data, variable) {
-  data %>% 
+merged_data <- 
+  sleeplogs_df %>% 
+  left_join((participants %>% select(ParticipantIdentifier, InfectionFirstReportedDate)), 
+            by = "ParticipantIdentifier")
+
+calculate_stats <- function(data, variable, monthsPostInfection=0) {
+  filtered_data <- 
+    data %>%
+    filter(Date >= InfectionDate + months(months_post_infection))
+  
+  filtered_data %>% 
     # drop_na() %>% 
     summarise(
       sd = stats::sd({{variable}}, na.rm = TRUE),
@@ -79,14 +88,14 @@ calculate_stats <- function(data, variable) {
 weekly_stats <- 
   list(
     midsleep = 
-      sleeplogs_df %>%
+      merged_data %>%
       group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-      calculate_stats(MidSleep) %>%
+      calculate_stats(MidSleep, monthsPostInfection = 3) %>%
       ungroup(),
     duration = 
       sleeplogs_df %>%
       group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-      calculate_stats(Duration) %>%
+      calculate_stats(Duration, monthsPostInfection = 6) %>%
       ungroup()
   )
 
