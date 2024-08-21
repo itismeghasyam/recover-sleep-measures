@@ -44,30 +44,14 @@ sleeplogs_df <-
 calculate_stats <- function(data) {
   data %>%
     summarise(
-      MeanDeep = mean(PercentDeep, na.rm = TRUE),
-      MedianDeep = median(PercentDeep, na.rm = TRUE),
-      VarianceDeep = var(PercentDeep, na.rm = TRUE),
-      Percentile5Deep = quantile(PercentDeep, 0.05, na.rm = TRUE),
-      Percentile95Deep = quantile(PercentDeep, 0.95, na.rm = TRUE),
-      CountDeep = n(),
-      MeanLight = mean(PercentLight, na.rm = TRUE),
-      MedianLight = median(PercentLight, na.rm = TRUE),
-      VarianceLight = var(PercentLight, na.rm = TRUE),
-      Percentile5Light = quantile(PercentLight, 0.05, na.rm = TRUE),
-      Percentile95Light = quantile(PercentLight, 0.95, na.rm = TRUE),
-      CountLight = n(),
-      MeanRem = mean(PercentRem, na.rm = TRUE),
-      MedianRem = median(PercentRem, na.rm = TRUE),
-      VarianceRem = var(PercentRem, na.rm = TRUE),
-      Percentile5Rem = quantile(PercentRem, 0.05, na.rm = TRUE),
-      Percentile95Rem = quantile(PercentRem, 0.95, na.rm = TRUE),
-      CountRem = n(),
-      MeanRestless = mean(PercentRestless, na.rm = TRUE),
-      MedianRestless = median(PercentRestless, na.rm = TRUE),
-      VarianceRestless = var(PercentRestless, na.rm = TRUE),
-      Percentile5Restless = quantile(PercentRestless, 0.05, na.rm = TRUE),
-      Percentile95Restless = quantile(PercentRestless, 0.95, na.rm = TRUE),
-      CountRestless = n()
+      across(starts_with("Percent"), list(
+        Mean = ~mean(.x, na.rm = TRUE),
+        Median = ~median(.x, na.rm = TRUE),
+        Variance = ~var(.x, na.rm = TRUE),
+        Percentile5 = ~quantile(.x, 0.05, na.rm = TRUE),
+        Percentile95 = ~quantile(.x, 0.95, na.rm = TRUE),
+        Count = ~n()
+      ), .names = "{.col}_{.fn}")
     )
 }
 
