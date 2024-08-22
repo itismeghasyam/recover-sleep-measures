@@ -12,8 +12,9 @@ vars <-
     "SleepLevelDeep", 
     "SleepLevelLight", 
     "SleepLevelRem", 
-    "SleepLevelRestless", 
-    "MinutesAsleep")
+    "SleepLevelRestless",
+    "SleepLevelAsleep"
+  )
 
 # Load desired subset of the data in memory and do some feature engineering
 sleeplogs_df <- 
@@ -25,15 +26,14 @@ sleeplogs_df <-
     Date = lubridate::as_date(StartDate), # YYYY-MM-DD format
     IsMainSleep = as.logical(IsMainSleep),
     across(starts_with("SleepLevel"), as.numeric),
-    MinutesAsleep = as.numeric(MinutesAsleep),
     SleepStartTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, StartDate, NA)),
     SleepStartTime = ((format(SleepStartTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
     SleepEndTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, EndDate, NA)),
     SleepEndTime = ((format(SleepEndTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
-    PercentDeep = if_else(MinutesAsleep==0, NA, SleepLevelDeep/MinutesAsleep),
-    PercentLight = if_else(MinutesAsleep==0, NA, SleepLevelLight/MinutesAsleep),
-    PercentRem = if_else(MinutesAsleep==0, NA, SleepLevelRem/MinutesAsleep),
-    PercentRestless = if_else(MinutesAsleep==0, NA, SleepLevelRestless/MinutesAsleep)
+    PercentDeep = SleepLevelDeep/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
+    PercentLight = SleepLevelLight/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
+    PercentRem = SleepLevelRem/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
+    PercentRestless = SleepLevelRestless/(SleepLevelAsleep + SleepLevelRestless)
   )
 
 calculate_stats <- function(data) {
