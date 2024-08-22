@@ -28,11 +28,11 @@ sleeplogs_df <-
   ) %>% 
   filter(IsMainSleep==TRUE)
 
-calculate_stats <- function(data) {
+calculate_stats <- function(data, variable) {
   data %>%
     drop_na() %>% 
     summarise(
-      freq = sum(Between8and2, na.rm = TRUE)/n(),
+      freq = sum({{variable}}, na.rm = TRUE)/n(),
       count = n()
     )
 }
@@ -41,12 +41,12 @@ calculate_stats <- function(data) {
 weekly_stats <- 
   sleeplogs_df %>%
   group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-  calculate_stats() %>%
+  calculate_stats("Between8and2") %>%
   ungroup()
 
 # All-time statistics
 alltime_stats <- 
   sleeplogs_df %>%
   group_by(ParticipantIdentifier) %>%
-  calculate_stats() %>%
+  calculate_stats("Between8and2") %>%
   ungroup()

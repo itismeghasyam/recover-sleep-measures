@@ -26,40 +26,37 @@ sleeplogs_df <-
     Date = lubridate::as_date(StartDate), # YYYY-MM-DD format
     IsMainSleep = as.logical(IsMainSleep),
     across(starts_with("SleepLevel"), as.numeric),
-    SleepStartTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, StartDate, NA)),
-    SleepStartTime = ((format(SleepStartTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
-    SleepEndTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, EndDate, NA)),
-    SleepEndTime = ((format(SleepEndTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
     PercentDeep = SleepLevelDeep/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
     PercentLight = SleepLevelLight/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
     PercentRem = SleepLevelRem/(SleepLevelDeep + SleepLevelLight + SleepLevelRem),
     PercentRestless = SleepLevelRestless/(SleepLevelAsleep + SleepLevelRestless)
   )
 
-calculate_stats <- function(data) {
+calculate_stats <- function(data, variable) {
   data %>%
     summarise(
-      across(starts_with("Percent"), list(
+      across(all_of({{variable}}), list(
         Mean = ~mean(.x, na.rm = TRUE),
         Median = ~median(.x, na.rm = TRUE),
         Variance = ~var(.x, na.rm = TRUE),
         Percentile5 = ~quantile(.x, 0.05, na.rm = TRUE),
         Percentile95 = ~quantile(.x, 0.95, na.rm = TRUE),
         Count = ~n()
-      ), .names = "{.col}_{.fn}")
+      ), .names = "{.col}_{.fn}"),
+      .groups = "drop"
     )
 }
 
 # Weekly statistics
 weekly_stats <- 
   sleeplogs_df %>%
-  group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-  calculate_stats() %>%
+  group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
+  calculate_stats("PercentDeep") %>% 
   ungroup()
 
 # All-time statistics
 alltime_stats <- 
   sleeplogs_df %>%
   group_by(ParticipantIdentifier) %>%
-  calculate_stats() %>%
+  calculate_stats("PercentDeep") %>%
   ungroup()
