@@ -5,9 +5,9 @@ list2env(
   envir = .GlobalEnv
 )
 
-cat("Fetching data....\n")
-
 login <- synapser::synLogin()
+
+cat("Fetching data....\n")
 
 # Get input files from synapse
 selected_vars <- 
