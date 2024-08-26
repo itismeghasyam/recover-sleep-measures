@@ -1,3 +1,5 @@
+source("scripts/fetch-data.R")
+
 participants <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "enrolledparticipants$"))
@@ -45,40 +47,27 @@ merged_data <-
   left_join((participants %>% select(ParticipantIdentifier, InfectionFirstReportedDate)), 
             by = "ParticipantIdentifier")
 
-calculate_stats <- function(data, variable, circular=FALSE, monthsPostInfection=0) {
-  filtered_data <- 
-    data %>%
-    filter(Date >= InfectionDate + months(months_post_infection))
-  
-  if (circular) {
-    filtered_data %>% 
-      # drop_na() %>% 
-      summarise(
-        circular_sd = psych::circadian.sd({{variable}}, hours = TRUE, na.rm = TRUE)$sd,
-        count = n()
-      )
-  } else {
-    filtered_data %>% 
-      # drop_na() %>% 
-      summarise(
-        sd = stats::sd({{variable}}, na.rm = TRUE),
-        count = n()
-      )
-  }
-}
-
 # Weekly statistics
 weekly_stats <- 
   list(
     midsleep = 
       merged_data %>%
-      group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-      calculate_stats(MidSleep, circular = TRUE, monthsPostInfection = 3) %>%
+      group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
+      filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
+      summarise(
+        circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+        count = n(),
+        .groups = "drop"
+      ) %>% 
       ungroup(),
     duration = 
-      sleeplogs_df %>%
-      group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-      calculate_stats(Duration, circular = FALSE, monthsPostInfection = 6) %>%
+      merged_data %>%
+      group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
+      summarise(
+        sd = stats::sd(Duration, na.rm = TRUE),
+        count = n(),
+        .groups = "drop"
+      ) %>% 
       ungroup()
   )
 
@@ -86,13 +75,22 @@ weekly_stats <-
 alltime_stats <- 
   list(
     midsleep =
-      sleeplogs_df %>%
+      merged_data %>%
       group_by(ParticipantIdentifier) %>%
-      calculate_stats(MidSleep, circular = TRUE) %>%
+      filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
+      summarise(
+        circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+        count = n(),
+        .groups = "drop"
+      ) %>% 
       ungroup(),
     duration =
-      sleeplogs_df %>%
+      merged_data %>%
       group_by(ParticipantIdentifier) %>%
-      calculate_stats(Duration, circular = FALSE) %>%
+      summarise(
+        sd = stats::sd(Duration, na.rm = TRUE),
+        count = n(),
+        .groups = "drop"
+      ) %>% 
       ungroup()
   )

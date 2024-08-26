@@ -1,3 +1,5 @@
+source("scripts/fetch-data.R")
+
 fitbit_sleeplogs <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "sleeplogs$"))
@@ -28,25 +30,36 @@ sleeplogs_df <-
   ) %>% 
   filter(IsMainSleep==TRUE)
 
-calculate_stats <- function(data, variable) {
-  data %>%
-    drop_na() %>% 
-    summarise(
-      freq = sum({{variable}}, na.rm = TRUE)/n(),
-      count = n()
-    )
-}
-
 # Weekly statistics
 weekly_stats <- 
   sleeplogs_df %>%
   group_by(ParticipantIdentifier, Week = floor_date(Date, "week")) %>%
-  calculate_stats("Between8and2") %>%
+  drop_na() %>% 
+  summarise(
+    across(.cols = all_of(c("Between8and2")),
+           .fns = 
+             list(
+               PercentOfTime = ~sum(.x, na.rm = TRUE)/n(),
+               Count = ~n()
+             ),
+           .names = "{.fn}"),
+    .groups = "drop"
+  ) %>% 
   ungroup()
 
 # All-time statistics
 alltime_stats <- 
   sleeplogs_df %>%
   group_by(ParticipantIdentifier) %>%
-  calculate_stats("Between8and2") %>%
+  drop_na() %>% 
+  summarise(
+    across(.cols = all_of(c("Between8and2")),
+           .fns = 
+             list(
+               PercentOfTime = ~sum(.x, na.rm = TRUE)/n(),
+               Count = ~n()
+             ),
+           .names = "{.fn}"),
+    .groups = "drop"
+  ) %>% 
   ungroup()
