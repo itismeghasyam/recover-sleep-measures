@@ -50,47 +50,99 @@ merged_data <-
 # Weekly statistics
 weekly_stats <- 
   list(
-    midsleep = 
-      merged_data %>%
-      group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
-      filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
-      summarise(
-        circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
-        count = n(),
-        .groups = "drop"
-      ) %>% 
-      ungroup(),
-    duration = 
-      merged_data %>%
-      group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
-      summarise(
-        sd = stats::sd(Duration, na.rm = TRUE),
-        count = n(),
-        .groups = "drop"
-      ) %>% 
-      ungroup()
+    midsleep =
+      list(
+        weekly =
+          merged_data %>%
+          group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
+          summarise(
+            circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+            count = sum(!is.na(MidSleep)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        sliding3weeks = NULL # TODO: 3 weeks sliding window
+      ),
+    duration =
+      list(
+        weekly =
+          merged_data %>%
+          group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>%
+          summarise(
+            sd = stats::sd(Duration, na.rm = TRUE),
+            count = sum(!is.na(Duration)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        sliding3weeks = NULL # TODO: 3 weeks sliding window
+      )
   )
 
 # All-time statistics
 alltime_stats <- 
   list(
     midsleep =
-      merged_data %>%
-      group_by(ParticipantIdentifier) %>%
-      filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
-      summarise(
-        circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
-        count = n(),
-        .groups = "drop"
-      ) %>% 
-      ungroup(),
+      list(
+        alltime =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          summarise(
+            circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+            count = sum(!is.na(MidSleep)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        start3monthsPostInfection =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
+          summarise(
+            circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+            count = sum(!is.na(MidSleep)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        start6monthspostinfection =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
+          summarise(
+            circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+            count = sum(!is.na(MidSleep)),
+            .groups = "drop"
+          ) %>% 
+          ungroup()
+      ),
     duration =
-      merged_data %>%
-      group_by(ParticipantIdentifier) %>%
-      summarise(
-        sd = stats::sd(Duration, na.rm = TRUE),
-        count = n(),
-        .groups = "drop"
-      ) %>% 
-      ungroup()
+      list(
+        alltime =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          summarise(
+            sd = stats::sd(Duration, na.rm = TRUE),
+            count = sum(!is.na(Duration)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        start3monthspostinfection =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
+          summarise(
+            sd = stats::sd(Duration, na.rm = TRUE),
+            count = sum(!is.na(Duration)),
+            .groups = "drop"
+          ) %>% 
+          ungroup(),
+        start6monthspostinfection =
+          merged_data %>%
+          group_by(ParticipantIdentifier) %>%
+          filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
+          summarise(
+            sd = stats::sd(Duration, na.rm = TRUE),
+            count = sum(!is.na(Duration)),
+            .groups = "drop"
+          ) %>% 
+          ungroup()
+      )
   )
