@@ -1,4 +1,4 @@
-source("scripts/fetch-data.R")
+source("scripts/etl/fetch-data.R")
 
 participants <- 
   arrow::open_dataset(
