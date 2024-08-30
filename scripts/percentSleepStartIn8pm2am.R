@@ -39,8 +39,8 @@ weekly_stats <-
     across(.cols = all_of(c("Between8and2")),
            .fns = 
              list(
-               PercentOfTime = ~sum(.x, na.rm = TRUE)/n(),
-               Count = ~n()
+               PercentOfTime = ~sum(.x, na.rm = TRUE)/sum(!is.na(.x)),
+               Count = ~sum(!is.na(.x))
              ),
            .names = "{.fn}"),
     .groups = "drop"
@@ -56,8 +56,8 @@ alltime_stats <-
     across(.cols = all_of(c("Between8and2")),
            .fns = 
              list(
-               PercentOfTime = ~sum(.x, na.rm = TRUE)/n(),
-               Count = ~n()
+               PercentOfTime = ~sum(.x, na.rm = TRUE)/sum(!is.na(.x)),
+               Count = ~sum(!is.na(.x))
              ),
            .names = "{.fn}"),
     .groups = "drop"

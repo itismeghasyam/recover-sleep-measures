@@ -46,7 +46,7 @@ weekly_stats <-
                Variance = ~var(.x, na.rm = TRUE),
                Percentile5 = ~quantile(.x, 0.05, na.rm = TRUE),
                Percentile95 = ~quantile(.x, 0.95, na.rm = TRUE),
-               Count = ~n()
+               Count = ~sum(!is.na(.x))
              ),
            .names = "{.col}_{.fn}"),
     .groups = "drop"
@@ -66,7 +66,7 @@ alltime_stats <-
                Variance = ~var(.x, na.rm = TRUE),
                Percentile5 = ~quantile(.x, 0.05, na.rm = TRUE),
                Percentile95 = ~quantile(.x, 0.95, na.rm = TRUE),
-               Count = ~n()
+               Count = ~sum(!is.na(.x))
              ),
            .names = "{.col}_{.fn}"),
     .groups = "drop"

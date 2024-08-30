@@ -75,8 +75,8 @@ calcMetrics <- function(data,
       variance = ~var(.x, na.rm = TRUE),
       percentile5 = ~quantile(.x, 0.05, na.rm = TRUE),
       percentile95 = ~quantile(.x, 0.95, na.rm = TRUE),
-      count = ~n(),
-      percent = ~sum(.x, na.rm = TRUE)/n(),
+      count = ~sum(!is.na(.x)),
+      percent = ~sum(.x, na.rm = TRUE)/sum(!is.na(.x)),
       circularSD = ~psych::circadian.sd(.x, hours = TRUE, na.rm = TRUE)$sd,
       SD = ~stats::sd(.x, na.rm = TRUE)
     )
