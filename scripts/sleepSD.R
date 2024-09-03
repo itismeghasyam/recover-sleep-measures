@@ -1,17 +1,13 @@
 source("scripts/etl/fetch-data.R")
 
-# Test infection date var using enrolledparticipants dataset
-# Substitute with valid infection date var from clinical data
-# infections <-
-#   arrow::open_dataset(
-#     s3$path(stringr::str_subset(dataset_paths, "enrolledparticipants$"))
-#   ) %>%
-#   select(c("ParticipantIdentifier",
-#            "EnrollmentDate",
-#            "CustomFields_InfectionFirstReportedDate")) %>%
-#   collect() %>%
-#   mutate(InfectionFirstReportedDate = as.Date(CustomFields_InfectionFirstReportedDate)) %>%
-#   select(-CustomFields_InfectionFirstReportedDate)
+infections <-
+  read_csv(readline("Enter path to 'visits' csv file: ")) %>% 
+  filter(infect_yn_curr==1) %>% 
+  group_by(record_id) %>%
+  summarise(infection_date = list(sort(unique(c(as_date(index_dt_curr), as_date(newinf_dt)))))) %>%
+  unnest_longer(infection_date) %>%
+  mutate(infection_date = as.Date(infection_date)) %>% 
+  rename(ParticipantIdentifier = record_id)
 
 fitbit_sleeplogs <- 
   arrow::open_dataset(
@@ -46,7 +42,7 @@ sleeplogs_df <-
 
 merged_data <- 
   sleeplogs_df %>% 
-  left_join((infections %>% select(ParticipantIdentifier, InfectionFirstReportedDate)), 
+  left_join((infections %>% select(ParticipantIdentifier, infection_date)), 
             by = "ParticipantIdentifier")
 
 # Weekly statistics
