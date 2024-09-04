@@ -1,12 +1,13 @@
 source("scripts/etl/fetch-data.R")
 
-infections <-
-  read_csv(readline("Enter path to 'visits' csv file: ")) %>% 
-  filter(infect_yn_curr==1) %>% 
+infections <- 
+  read_csv(readline("Enter path to 'visits' csv file: ")) %>%
+  filter(infect_yn_curr==1) %>%
   group_by(record_id) %>%
-  summarise(infection_date = list(sort(unique(c(as_date(index_dt_curr), as_date(newinf_dt)))))) %>%
-  unnest_longer(infection_date) %>%
-  mutate(infection_date = as.Date(infection_date)) %>% 
+  summarise(
+    first_infection_date = min(c(as_date(index_dt_curr), as_date(newinf_dt)), na.rm = TRUE),
+    last_infection_date = max(c(as_date(index_dt_curr), as_date(newinf_dt)), na.rm = TRUE)
+  ) %>%
   rename(ParticipantIdentifier = record_id)
 
 fitbit_sleeplogs <- 
@@ -42,7 +43,7 @@ sleeplogs_df <-
 
 merged_data <- 
   sleeplogs_df %>% 
-  left_join((infections %>% select(ParticipantIdentifier, infection_date)), 
+  left_join(y = infections, 
             by = "ParticipantIdentifier")
 
 # Weekly statistics
@@ -93,7 +94,7 @@ alltime_stats <-
         start3monthsPostInfection =
           merged_data %>%
           group_by(ParticipantIdentifier) %>%
-          filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
+          filter(Date >= (first_infection_date + months(3))) %>% 
           summarise(
             circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
             count = sum(!is.na(MidSleep)),
@@ -103,7 +104,7 @@ alltime_stats <-
         start6monthspostinfection =
           merged_data %>%
           group_by(ParticipantIdentifier) %>%
-          filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
+          filter(Date >= (first_infection_date + months(6))) %>% 
           summarise(
             circular_sd = psych::circadian.sd(MidSleep, hours = TRUE, na.rm = TRUE)$sd,
             count = sum(!is.na(MidSleep)),
@@ -125,7 +126,7 @@ alltime_stats <-
         start3monthspostinfection =
           merged_data %>%
           group_by(ParticipantIdentifier) %>%
-          filter(Date >= (InfectionFirstReportedDate + months(3))) %>% 
+          filter(Date >= (first_infection_date + months(3))) %>% 
           summarise(
             sd = stats::sd(Duration, na.rm = TRUE),
             count = sum(!is.na(Duration)),
@@ -135,7 +136,7 @@ alltime_stats <-
         start6monthspostinfection =
           merged_data %>%
           group_by(ParticipantIdentifier) %>%
-          filter(Date >= (InfectionFirstReportedDate + months(6))) %>% 
+          filter(Date >= (first_infection_date + months(6))) %>% 
           summarise(
             sd = stats::sd(Duration, na.rm = TRUE),
             count = sum(!is.na(Duration)),
