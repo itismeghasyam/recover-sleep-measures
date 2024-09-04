@@ -195,3 +195,13 @@ write_csv(
   x = output, 
   file = file.path(outputDataDir, "daily_sleep_measures.csv")
 )
+
+f <- 
+  synapser::synStore(
+    synapser::File(
+      path = str_subset(list.files(outputDataDir, full.names = T), 
+                 "daily_sleep_measures.csv"),
+      parent = dailyMeasuresSynDirID
+    ), 
+    executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R"
+  )
