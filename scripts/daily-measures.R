@@ -1,4 +1,4 @@
-source("scripts/fetch-data.R")
+source("scripts/etl/fetch-data.R")
 
 fitbit_sleeplogs <- 
   arrow::open_dataset(
@@ -116,7 +116,8 @@ rem_onset_latency <-
         StartDate[firstNonWake] %>% first() %>% lubridate::ymd_hms(),
         units = "secs"
       ) %>% 
-      as.numeric()
+      as.numeric(),
+    .groups = "drop"
   ) %>% 
   ungroup() %>% 
   select(ParticipantIdentifier, LogId, remOnsetLatency)
@@ -129,7 +130,7 @@ rem_fragmentation_index <-
   arrange(StartDate, .by_group = TRUE) %>% 
   mutate(prevValue = dplyr::lag(Value, 1)) %>% 
   filter(prevValue == "rem" & Value != "rem") %>%
-  summarise(remTransitions = n()) %>% 
+  summarise(remTransitions = n(), .groups = "drop") %>% 
   left_join(y = (sleeplogs_df %>% select(ParticipantIdentifier, LogId, SleepLevelRem)), 
             by = join_by("ParticipantIdentifier", "LogId")) %>% 
   mutate(SleepLevelRem = as.numeric(SleepLevelRem)) %>% 
@@ -175,7 +176,8 @@ reduced_to_daily_df <-
     Efficiency = mean(Efficiency, na.rm = TRUE),
     NumAwakenings = mean(NumAwakenings, na.rm = TRUE),
     remOnsetLatency = as.numeric(mean(remOnsetLatency, na.rm = TRUE)),
-    remFragmentationIndex = mean(remFragmentationIndex, na.rm = TRUE)
+    remFragmentationIndex = mean(remFragmentationIndex, na.rm = TRUE),
+    .groups = "drop"
   ) %>% 
   mutate(across(where(is.numeric), ~na_if(., NaN)))
 

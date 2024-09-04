@@ -5,9 +5,9 @@ list2env(
   envir = .GlobalEnv
 )
 
-cat("\n----Fetching data----\n")
-
 login <- synapser::synLogin()
+
+cat("Fetching data....\n")
 
 # Get input files from synapse
 selected_vars <- 
@@ -59,4 +59,4 @@ if (!dir.exists(outputDataDir)) {
   dir.create(outputDataDir)
 }
 
-cat("----Finished----\n")
+cat("\nFetching data....OK\n")
