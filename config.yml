@@ -3,4 +3,7 @@ default:
   archiveVersion: main/archive/2024-06-13/
   selectedVarsFileID: syn53503994
   outputDataDir: ./temp-output-data
-  derivedMeasuresSynDirId: syn62668988
+  dailyMeasuresSynDirId: syn62668988
+  sleepSDSynDirId: syn62782378
+  timeInSleepStagesSynDirId: syn62782384
+  percentSleepStartSynDirId: syn62782401
