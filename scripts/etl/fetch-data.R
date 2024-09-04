@@ -59,4 +59,16 @@ if (!dir.exists(outputDataDir)) {
   dir.create(outputDataDir)
 }
 
+if (!dir.exists(outputDataDirSleepSD)) {
+  dir.create(outputDataDirSleepSD)
+}
+
+if (!dir.exists(outputDataDirTimeInSleepStages)) {
+  dir.create(outputDataDirTimeInSleepStages)
+}
+
+if (!dir.exists(outputDataDirPercentSleepStart)) {
+  dir.create(outputDataDirPercentSleepStart)
+}
+
 cat("\nFetching data....OK\n")
