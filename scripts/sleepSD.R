@@ -145,3 +145,66 @@ alltime_stats <-
           ungroup()
       )
   )
+
+write_csv(
+  x = weekly_stats$midsleep$weekly, 
+  file = file.path(outputDataDir, "weekly_stats_midsleep.csv")
+)
+
+write_csv(
+  x = weekly_stats$duration$weekly, 
+  file = file.path(outputDataDir, "weekly_stats_duration.csv")
+)
+
+write_csv(
+  x = alltime_stats$midsleep$alltime, 
+  file = file.path(outputDataDir, "alltime_stats_midsleep.csv")
+)
+
+write_csv(
+  x = alltime_stats$midsleep$start3monthsPostInfection, 
+  file = file.path(outputDataDir, "alltime_stats_midsleep_3mo_post_infection.csv")
+)
+
+write_csv(
+  x = alltime_stats$midsleep$start6monthspostinfection, 
+  file = file.path(outputDataDir, "alltime_stats_midsleep_6mo_post_infection.csv")
+)
+
+write_csv(
+  x = alltime_stats$duration$alltime, 
+  file = file.path(outputDataDir, "alltime_stats_duration.csv")
+)
+
+write_csv(
+  x = alltime_stats$duration$start3monthspostinfection, 
+  file = file.path(outputDataDir, "alltime_stats_duration_3mo_post_infection.csv")
+)
+
+write_csv(
+  x = alltime_stats$duration$start6monthspostinfection, 
+  file = file.path(outputDataDir, "alltime_stats_duration_6mo_post_infection.csv")
+)
+
+synapserutils::generate_sync_manifest(
+  directory_path = outputDataDir,
+  parent_id = derivedMeasuresSynDirId,
+  manifest_path = "output-data-manifest.tsv"
+)
+
+manifest <- read_tsv("output-data-manifest.tsv")
+
+thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/sleepSD.R"
+
+manifest <-
+  manifest %>%
+  mutate(executed = thisScriptUrl)
+
+write_tsv(manifest, "output-data-manifest.tsv")
+
+synclient <- reticulate::import("synapseclient")
+syn_temp <- synclient$Synapse()
+syn_temp$login()
+
+synutils <- reticulate::import("synapseutils")
+synutils$syncToSynapse(syn = syn_temp, manifestFile = "output-data-manifest.tsv")
