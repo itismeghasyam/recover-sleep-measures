@@ -254,7 +254,7 @@ write_csv(
 
 synapserutils::generate_sync_manifest(
   directory_path = outputDataDirSleepSD,
-  parent_id = derivedMeasuresSynDirId,
+  parent_id = sleepSDSynDirId,
   manifest_path = "output-data-manifest.tsv"
 )
 
