@@ -252,13 +252,14 @@ write_csv(
   file = file.path(outputDataDirSleepSD, "alltime_stats_duration_6mo_post_infection.csv")
 )
 
+manifest_path <- file.path(outputDataDirSleepSD, "output-data-manifest.tsv")
+
 synapserutils::generate_sync_manifest(
   directory_path = outputDataDirSleepSD,
   parent_id = sleepSDSynDirId,
-  manifest_path = "output-data-manifest.tsv"
+  manifest_path = manifest_path
 )
 
-manifest_path <- file.path(outputDataDirSleepSD, "output-data-manifest.tsv")
 manifest <- read_tsv(manifest_path)
 
 thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/sleepSD.R"
