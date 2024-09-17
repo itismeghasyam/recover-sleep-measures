@@ -60,7 +60,35 @@ weekly_stats <-
             .groups = "drop"
           ) %>% 
           ungroup(),
-        sliding3weeks = NULL # TODO: 3 weeks sliding window
+        sliding3weeks =
+          lapply(unique(merged_data$ParticipantIdentifier), function(pid) {
+            merged_data %>% 
+              filter(ParticipantIdentifier==pid) %>%
+              group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>% 
+              arrange(Date, .by_group = TRUE) %>% 
+              slider::slide_period(
+                .i = .$WeekStart,
+                .period = "week",
+                .f = ~summarise(
+                  .x, 
+                  sd = psych::circadian.sd(.x$MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+                  count = sum(!is.na(.x$MidSleep)),
+                  .groups = "drop"),
+                .every = 1,
+                .before = 2,
+                .complete = FALSE) %>% 
+              lapply(function(x) {
+                x %>% 
+                  mutate(period_start = first(WeekStart), period_end = as.Date(ceiling_date(last(WeekStart), unit = "week"))) %>% 
+                  select(-WeekStart) %>% 
+                  distinct()
+              }) %>% 
+              list_rbind()
+          }) %>% 
+          list_rbind() %>% 
+          ungroup() %>% 
+          mutate(period_dt = as.numeric(period_end - period_start)) %>% 
+          filter(period_dt==21)
       ),
     duration =
       list(
@@ -73,7 +101,35 @@ weekly_stats <-
             .groups = "drop"
           ) %>% 
           ungroup(),
-        sliding3weeks = NULL # TODO: 3 weeks sliding window
+        sliding3weeks =
+          lapply(unique(merged_data$ParticipantIdentifier), function(pid) {
+            merged_data %>% 
+              filter(ParticipantIdentifier==pid) %>%
+              group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>% 
+              arrange(Date, .by_group = TRUE) %>% 
+              slider::slide_period(
+                .i = .$WeekStart,
+                .period = "week",
+                .f = ~summarise(
+                  .x, 
+                  sd = stats::sd(.x$Duration, na.rm = TRUE),
+                  count = sum(!is.na(.x$Duration)),
+                  .groups = "drop"),
+                .every = 1,
+                .before = 2,
+                .complete = FALSE) %>% 
+              lapply(function(x) {
+                x %>% 
+                  mutate(period_start = first(WeekStart), period_end = as.Date(ceiling_date(last(WeekStart), unit = "week"))) %>% 
+                  select(-WeekStart) %>% 
+                  distinct()
+              }) %>% 
+              list_rbind()
+          }) %>% 
+          list_rbind() %>% 
+          ungroup() %>% 
+          mutate(period_dt = as.numeric(period_end - period_start)) %>% 
+          filter(period_dt==21)
       )
   )
 
@@ -148,51 +204,62 @@ alltime_stats <-
 
 write_csv(
   x = weekly_stats$midsleep$weekly, 
-  file = file.path(outputDataDir, "weekly_stats_midsleep.csv")
+  file = file.path(outputDataDirSleepSD, "weekly_stats_midsleep.csv")
+)
+
+write_csv(
+  x = weekly_stats$midsleep$sliding3weeks, 
+  file = file.path(outputDataDirSleepSD, "sliding3weeks_stats_midsleep.csv")
 )
 
 write_csv(
   x = weekly_stats$duration$weekly, 
-  file = file.path(outputDataDir, "weekly_stats_duration.csv")
+  file = file.path(outputDataDirSleepSD, "weekly_stats_duration.csv")
+)
+
+write_csv(
+  x = weekly_stats$duration$sliding3weeks, 
+  file = file.path(outputDataDirSleepSD, "sliding3weeks_stats_duration.csv")
 )
 
 write_csv(
   x = alltime_stats$midsleep$alltime, 
-  file = file.path(outputDataDir, "alltime_stats_midsleep.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_midsleep.csv")
 )
 
 write_csv(
   x = alltime_stats$midsleep$start3monthsPostInfection, 
-  file = file.path(outputDataDir, "alltime_stats_midsleep_3mo_post_infection.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_midsleep_3mo_post_infection.csv")
 )
 
 write_csv(
   x = alltime_stats$midsleep$start6monthspostinfection, 
-  file = file.path(outputDataDir, "alltime_stats_midsleep_6mo_post_infection.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_midsleep_6mo_post_infection.csv")
 )
 
 write_csv(
   x = alltime_stats$duration$alltime, 
-  file = file.path(outputDataDir, "alltime_stats_duration.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_duration.csv")
 )
 
 write_csv(
   x = alltime_stats$duration$start3monthspostinfection, 
-  file = file.path(outputDataDir, "alltime_stats_duration_3mo_post_infection.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_duration_3mo_post_infection.csv")
 )
 
 write_csv(
   x = alltime_stats$duration$start6monthspostinfection, 
-  file = file.path(outputDataDir, "alltime_stats_duration_6mo_post_infection.csv")
+  file = file.path(outputDataDirSleepSD, "alltime_stats_duration_6mo_post_infection.csv")
 )
 
 synapserutils::generate_sync_manifest(
-  directory_path = outputDataDir,
+  directory_path = outputDataDirSleepSD,
   parent_id = derivedMeasuresSynDirId,
   manifest_path = "output-data-manifest.tsv"
 )
 
-manifest <- read_tsv("output-data-manifest.tsv")
+manifest_path <- file.path(outputDataDirSleepSD, "output-data-manifest.tsv")
+manifest <- read_tsv(manifest_path)
 
 thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/sleepSD.R"
 
@@ -200,11 +267,11 @@ manifest <-
   manifest %>%
   mutate(executed = thisScriptUrl)
 
-write_tsv(manifest, "output-data-manifest.tsv")
+write_tsv(manifest, manifest_path)
 
 synclient <- reticulate::import("synapseclient")
 syn_temp <- synclient$Synapse()
 syn_temp$login()
 
 synutils <- reticulate::import("synapseutils")
-synutils$syncToSynapse(syn = syn_temp, manifestFile = "output-data-manifest.tsv")
+synutils$syncToSynapse(syn = syn_temp, manifestFile = manifest_path)
