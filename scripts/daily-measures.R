@@ -201,7 +201,7 @@ f <-
     synapser::File(
       path = str_subset(list.files(outputDataDir, full.names = T), 
                  "daily_sleep_measures.csv"),
-      parent = derivedMeasuresSynDirId
+      parent = dailyMeasuresSynDirId
     ), 
     executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R"
   )

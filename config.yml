@@ -1,5 +1,5 @@
 default:
-  parquetDirID: syn61250818
+  parquetDirId: syn61250818
   archiveVersion: main/archive/2024-06-13/
   selectedVarsFileID: syn53503994
   outputDataDir: ./temp-output-data

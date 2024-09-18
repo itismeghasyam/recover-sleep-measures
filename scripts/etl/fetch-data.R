@@ -7,7 +7,7 @@ list2env(
 
 login <- synapser::synLogin()
 
-cat("Fetching data....\n")
+cat("Fetching data....")
 
 # Get input files from synapse
 selected_vars <- 
@@ -23,7 +23,7 @@ dataset_name_filter <-
 
 # Sync S3 bucket to local
 token <- synapser::synGetStsStorageToken(
-  entity = parquetDirID,
+  entity = parquetDirId,
   permission = "read_only",
   output_format = "json")
 
@@ -71,4 +71,4 @@ if (!dir.exists(outputDataDirPercentSleepStart)) {
   dir.create(outputDataDirPercentSleepStart)
 }
 
-cat("\nFetching data....OK\n")
+cat("OK\n")
