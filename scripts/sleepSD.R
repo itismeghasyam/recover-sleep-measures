@@ -1,8 +1,8 @@
 source("scripts/etl/fetch-data.R")
 
 infections <-
-  read_csv(readline("Enter path to 'visits' csv file: ")) %>%
-  filter(infect_yn_curr==1) %>%
+  read_csv(readline("Enter path to 'visits' csv file: ")) %>% 
+  filter(infect_yn_curr==1) %>% 
   group_by(record_id) %>%
   summarise(
     first_infection_date = min(c(as_date(index_dt_curr), as_date(newinf_dt)), na.rm = TRUE),
