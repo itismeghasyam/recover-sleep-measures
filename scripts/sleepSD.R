@@ -1,6 +1,6 @@
 source("scripts/etl/fetch-data.R")
 
-infections <- 
+infections <-
   read_csv(readline("Enter path to 'visits' csv file: ")) %>%
   filter(infect_yn_curr==1) %>%
   group_by(record_id) %>%
