@@ -10,12 +10,8 @@ vars <-
     "LogId",
     "IsMainSleep",
     "StartDate", # YYYY-MM-DDTHH:MM:SS format
-    "EndDate", # YYYY-MM-DDTHH:MM:SS format,
-    "SleepLevelDeep", 
-    "SleepLevelLight", 
-    "SleepLevelRem", 
-    "SleepLevelRestless", 
-    "MinutesAsleep")
+    "EndDate" # YYYY-MM-DDTHH:MM:SS format,
+  )
 
 # Load desired subset of the data in memory and do some feature engineering
 sleeplogs_df <- 
@@ -25,13 +21,7 @@ sleeplogs_df <-
   distinct() %>% 
   mutate(
     Date = lubridate::as_date(StartDate), # YYYY-MM-DD format
-    IsMainSleep = as.logical(IsMainSleep),
-    across(starts_with("SleepLevel"), as.numeric),
-    MinutesAsleep = as.numeric(MinutesAsleep),
-    SleepStartTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, StartDate, NA)),
-    SleepStartTime = ((format(SleepStartTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
-    SleepEndTime = lubridate::as_datetime(ifelse(IsMainSleep==TRUE, EndDate, NA)),
-    SleepEndTime = ((format(SleepEndTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
+    IsMainSleep = as.logical(IsMainSleep)
   )
 
 fitbit_sleeplogdetails <- 
@@ -50,7 +40,7 @@ sleeplogdetails_df <-
   collect() %>% 
   distinct() %>% 
   left_join(y = (sleeplogs_df %>% select(ParticipantIdentifier, LogId, Date, IsMainSleep)), 
-            by = join_by("LogId", "ParticipantIdentifier")) %>% 
+            by = join_by("ParticipantIdentifier", "LogId")) %>% 
   group_by(ParticipantIdentifier, LogId, id) %>% 
   arrange(StartDate, .by_group = TRUE) %>% 
   ungroup() %>% 
@@ -59,7 +49,7 @@ sleeplogdetails_df <-
 sleeplogdetails_df_unique <- sleeplogdetails_df[!duplicated(sleeplogdetails_df),]
 
 tictoc::tic()
-ex_weekly <- 
+ex <- 
   lapply(unique(sleeplogdetails_df_unique$ParticipantIdentifier)[1], function(pid) {
     df <- 
       sleeplogdetails_df_unique %>% 
@@ -96,84 +86,6 @@ ex_weekly <-
         )
       }) %>% 
       bind_rows()
-  }) %>% 
-  bind_rows()
-tictoc::toc()
-
-tictoc::tic()
-ex_sliding3weeks <- 
-  lapply(unique(sleeplogdetails_df_unique$ParticipantIdentifier)[0:5], function(pid) {
-    sleeplogdetails_df_unique %>% 
-      filter(ParticipantIdentifier==pid) %>%
-      select(ParticipantIdentifier, LogId, StartDate, EndDate, Value, Type) %>% 
-      mutate(StartDate = as_datetime(StartDate), EndDate = as_datetime(EndDate)) %>% 
-      filter(!is.na(StartDate), !is.na(EndDate)) %>% 
-      mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
-      rowwise() %>%
-      reframe(
-        ParticipantIdentifier = ParticipantIdentifier,
-        LogId = LogId,
-        DateTime = seq(StartDate, EndDate, by = "30 sec"),
-        Value = Value,
-        Type = Type,
-        SleepStatus = SleepStatus
-      ) %>%
-      ungroup() %>% 
-      group_by(ParticipantIdentifier, LogId) %>%
-      arrange(DateTime, .by_group = TRUE) %>% 
-      ungroup()
-  }) %>% 
-  bind_rows()
-tictoc::toc()
-
-tictoc::tic()
-ex_alltime <- 
-  lapply(unique(sleeplogdetails_df_unique$ParticipantIdentifier)[0:5], function(pid) {
-    sleeplogdetails_df_unique %>% 
-      filter(ParticipantIdentifier==pid) %>%
-      select(ParticipantIdentifier, LogId, StartDate, EndDate, Value, Type) %>% 
-      mutate(StartDate = as_datetime(StartDate), EndDate = as_datetime(EndDate)) %>% 
-      filter(!is.na(StartDate), !is.na(EndDate)) %>% 
-      mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
-      rowwise() %>%
-      reframe(
-        ParticipantIdentifier = ParticipantIdentifier,
-        LogId = LogId,
-        DateTime = seq(StartDate, EndDate, by = "30 sec"),
-        Value = Value,
-        Type = Type,
-        SleepStatus = SleepStatus
-      ) %>%
-      ungroup() %>% 
-      group_by(ParticipantIdentifier, LogId) %>%
-      arrange(DateTime, .by_group = TRUE) %>% 
-      ungroup()
-  }) %>% 
-  bind_rows()
-tictoc::toc()
-
-tictoc::tic()
-ex_alltime_post_infection <- 
-  lapply(unique(sleeplogdetails_df_unique$ParticipantIdentifier)[0:5], function(pid) {
-    sleeplogdetails_df_unique %>% 
-      filter(ParticipantIdentifier==pid) %>%
-      select(ParticipantIdentifier, LogId, StartDate, EndDate, Value, Type) %>% 
-      mutate(StartDate = as_datetime(StartDate), EndDate = as_datetime(EndDate)) %>% 
-      filter(!is.na(StartDate), !is.na(EndDate)) %>% 
-      mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
-      rowwise() %>%
-      reframe(
-        ParticipantIdentifier = ParticipantIdentifier,
-        LogId = LogId,
-        DateTime = seq(StartDate, EndDate, by = "30 sec"),
-        Value = Value,
-        Type = Type,
-        SleepStatus = SleepStatus
-      ) %>%
-      ungroup() %>% 
-      group_by(ParticipantIdentifier, LogId) %>%
-      arrange(DateTime, .by_group = TRUE) %>% 
-      ungroup()
   }) %>% 
   bind_rows()
 tictoc::toc()
