@@ -83,9 +83,9 @@ weekly_stats <-
                   select(-WeekStart) %>% 
                   distinct()
               }) %>% 
-              list_rbind()
+              bind_rows()
           }) %>% 
-          list_rbind() %>% 
+          bind_rows() %>% 
           ungroup() %>% 
           mutate(period_dt = as.numeric(period_end - period_start)) %>% 
           filter(period_dt==21)
@@ -124,9 +124,9 @@ weekly_stats <-
                   select(-WeekStart) %>% 
                   distinct()
               }) %>% 
-              list_rbind()
+              bind_rows()
           }) %>% 
-          list_rbind() %>% 
+          bind_rows() %>% 
           ungroup() %>% 
           mutate(period_dt = as.numeric(period_end - period_start)) %>% 
           filter(period_dt==21)
