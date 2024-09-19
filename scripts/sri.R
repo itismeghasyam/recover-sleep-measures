@@ -1,5 +1,9 @@
 source("scripts/etl/fetch-data.R")
 
+library(future.apply)
+num_cores <- parallel::detectCores()*0.75
+plan(multisession, workers = num_cores)
+
 fitbit_sleeplogs <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "sleeplogs$"))
@@ -66,12 +70,6 @@ tictoc::toc()
 
 # rm(merged_df)
 
-tictoc::tic("SRI calculation")
-result <- data.frame(participant = character(), sri = numeric())
-
-dataset_paths <- list.dirs(merged_df_path)
-dataset_paths <- dataset_paths[dataset_paths != merged_df_path]
-
 calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
   200 * mean(
     complete_exdf$SleepStatus[1:(nrow(complete_exdf) - epochs_per_day)] == 
@@ -79,12 +77,12 @@ calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
   ) - 100
 }
 
-for (dataset_path in dataset_paths) {
+calc_sri_parallel <- function(dataset_path) {
+  
   exdf <- 
     arrow::open_dataset(dataset_path) %>% 
     collect() %>% 
     arrange(StartDate) %>% 
-    # group_by(LogId, id) %>% 
     rowwise() %>% 
     reframe(
       LogId = LogId,
@@ -96,38 +94,41 @@ for (dataset_path in dataset_paths) {
     slice_tail(n = 1) %>%
     ungroup()
   
-  # Step 1: Get unique dates
-  unique_days <- exdf %>%
+  # Get unique dates
+  unique_days <- 
+    exdf %>%
     mutate(Date = as.Date(DateTime)) %>% 
     distinct(Date)
   
-  # Step 2: Generate a complete sequence of 30-second intervals for each day
-  full_intervals <- unique_days %>%
+  # Generate a complete sequence of 30-second intervals for each day
+  full_intervals <- 
+    unique_days %>%
     rowwise() %>%
     mutate(DateTime = list(seq.POSIXt(as.POSIXct(paste0(Date, " 00:00:00")), 
                                       as.POSIXct(paste0(Date, " 23:59:30")), 
                                       by = "30 sec"))) %>%
     unnest(cols = c(DateTime))
   
-  # Step 3: Merge the full sequence with the original data
+  # Merge the full sequence with the original data and fill missing SleepStatus values with NA
   complete_exdf <- full_intervals %>%
-    left_join(exdf, by = "DateTime")
-  
-  # Step 4: Fill missing SleepStatus values with NA
-  complete_exdf <- complete_exdf %>%
+    left_join(exdf, by = "DateTime") %>% 
     mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
-  epochs_per_day <- 2880
-  
-  ex_sri <- calc_sri(complete_exdf, epochs_per_day)
+  ex_sri <- calc_sri(complete_exdf, epochs_per_day = 2880)
   
   participant <- basename(dataset_path)
   
-  result <- 
-    bind_rows(result, 
-              data.frame(participant = participant, sri = ex_sri))
+  return(data.frame(participant = participant, sri = ex_sri))
 }
+
+result <- data.frame(participant = character(), sri = numeric())
+
+dataset_paths <- list.dirs(merged_df_path)
+dataset_paths <- dataset_paths[dataset_paths != merged_df_path]
+
+tictoc::tic("SRI calculation")
+result <- future_lapply(dataset_paths, calc_sri_parallel) %>% bind_rows()
 tictoc::toc()
 
 # Weekly statistics
