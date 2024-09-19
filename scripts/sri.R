@@ -34,9 +34,11 @@ sleeplogdetails_vars <-
   filter(str_detect(Export, "sleeplogdetails$")) %>% 
   pull(Variable)
 
-sleeplogdetails_df <- 
+merged_df <- 
   fitbit_sleeplogdetails %>% 
   select(all_of(sleeplogdetails_vars)) %>% 
+  filter(Type=="SleepLevel") %>% 
+  select(-c("Type")) %>% 
   collect() %>% 
   distinct() %>% 
   left_join(y = (sleeplogs_df %>% select(ParticipantIdentifier, LogId, Date, IsMainSleep)), 
@@ -44,56 +46,92 @@ sleeplogdetails_df <-
   group_by(ParticipantIdentifier, LogId, id) %>% 
   arrange(StartDate, .by_group = TRUE) %>% 
   ungroup() %>% 
-  mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1))
+  mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
+  select(-Value) %>% 
+  distinct()
 
-sleeplogdetails_df_unique <- sleeplogdetails_df[!duplicated(sleeplogdetails_df),]
+# rm(sleeplogs_df)
 
-tictoc::tic()
-ex <- 
-  lapply(unique(sleeplogdetails_df_unique$ParticipantIdentifier)[1], function(pid) {
-    df <- 
-      sleeplogdetails_df_unique %>% 
-      filter(ParticipantIdentifier==pid) %>%
-      select(ParticipantIdentifier, LogId, StartDate, EndDate, Value, Type) %>% 
-      mutate(StartDate = as_datetime(StartDate), EndDate = as_datetime(EndDate)) %>% 
-      filter(!is.na(StartDate), !is.na(EndDate)) %>% 
-      mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
-      rowwise() %>%
-      reframe(
-        ParticipantIdentifier = ParticipantIdentifier,
-        LogId = LogId,
-        DateTime = seq(StartDate, EndDate, by = "30 sec"),
-        Value = Value,
-        Type = Type,
-        SleepStatus = SleepStatus
-      ) %>%
-      ungroup() %>% 
-      group_by(ParticipantIdentifier, LogId) %>%
-      arrange(DateTime, .by_group = TRUE) %>% 
-      ungroup()
-    
-    lapply(unique(df$LogId), function(lid) {
-      df %>% 
-        filter(LogId==lid) %>% 
-        rowwise() %>% 
-        reframe(
-          ParticipantIdentifier = ParticipantIdentifier,
-          LogId = LogId,
-          DateTime = seq(floor_date(min(DateTime), "day"), ceiling_date(max(DateTime), "day"), by = "30 sec"),
-          Value = Value,
-          Type = Type,
-          SleepStatus = SleepStatus
-        )
-      }) %>% 
-      bind_rows()
-  }) %>% 
-  bind_rows()
+merged_df_path <- "./temp-output-data/datasets/merged_df"
+unlink(merged_df_path, recursive = T, force = T)
+dir.create(path = merged_df_path, recursive = T)
+
+tictoc::tic("Writing datasets")
+arrow::write_dataset(dataset = merged_df, 
+                     path = merged_df_path, 
+                     format = "parquet", 
+                     partitioning = "ParticipantIdentifier", 
+                     hive_style = FALSE)
+tictoc::toc()
+
+# rm(merged_df)
+
+tictoc::tic("SRI calculation")
+result <- data.frame(participant = character(), sri = numeric())
+
+dataset_path <- list.dirs(merged_df_path)
+dataset_path <- dataset_path[dataset_path != merged_df_path][1]
+
+calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
+  200 * mean(
+    complete_exdf$SleepStatus[1:(nrow(complete_exdf) - epochs_per_day)] == 
+      complete_exdf$SleepStatus[(epochs_per_day + 1):nrow(complete_exdf)]
+  ) - 100
+}
+
+exdf <- 
+  arrow::open_dataset(dataset_path) %>% 
+  collect() %>% 
+  arrange(StartDate) %>% 
+  # group_by(LogId, id) %>% 
+  rowwise() %>% 
+  reframe(
+    LogId = LogId,
+    id = id,
+    DateTime = seq(min(as_datetime(StartDate)), max(as_datetime(EndDate)), by = "30 sec"),
+    SleepStatus = SleepStatus
+  ) %>% 
+  group_by(DateTime) %>%
+  slice_tail(n = 1) %>%
+  ungroup()
+
+# Step 1: Get unique dates
+unique_days <- exdf %>%
+  mutate(Date = as.Date(DateTime)) %>% 
+  distinct(Date)
+
+# Step 2: Generate a complete sequence of 30-second intervals for each day
+full_intervals <- unique_days %>%
+  rowwise() %>%
+  mutate(DateTime = list(seq.POSIXt(as.POSIXct(paste0(Date, " 00:00:00")), 
+                                    as.POSIXct(paste0(Date, " 23:59:30")), 
+                                    by = "30 sec"))) %>%
+  unnest(cols = c(DateTime))
+
+# Step 3: Merge the full sequence with the original data
+complete_exdf <- full_intervals %>%
+  left_join(exdf, by = "DateTime")
+
+# Step 4: Fill missing SleepStatus values with NA
+complete_exdf <- complete_exdf %>%
+  mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
+  mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
+
+epochs_per_day <- 2880
+
+ex_sri <- calc_sri(complete_exdf, epochs_per_day)
+
+participant <- basename(dataset_path)
+
+result <- 
+  bind_rows(result, 
+            data.frame(participant = participant, sri = ex_sri))
 tictoc::toc()
 
 # Assuming sleeplogs_df has a column 'SleepStatus' (1 = sleep, 0 = wake)
 # Group data by ParticipantIdentifier and calculate SRI
 sri_results <- 
-  sleeplogdetails_df_unique %>%
+  merged_df_unique %>%
   arrange(ParticipantIdentifier, Date, SleepStartTime) %>%  # Ensure the data is sorted correctly
   group_by(ParticipantIdentifier) %>%
   summarise(
