@@ -69,8 +69,8 @@ tictoc::toc()
 tictoc::tic("SRI calculation")
 result <- data.frame(participant = character(), sri = numeric())
 
-dataset_path <- list.dirs(merged_df_path)
-dataset_path <- dataset_path[dataset_path != merged_df_path][1]
+dataset_paths <- list.dirs(merged_df_path)
+dataset_paths <- dataset_paths[dataset_paths != merged_df_path]
 
 calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
   200 * mean(
@@ -79,64 +79,56 @@ calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
   ) - 100
 }
 
-exdf <- 
-  arrow::open_dataset(dataset_path) %>% 
-  collect() %>% 
-  arrange(StartDate) %>% 
-  # group_by(LogId, id) %>% 
-  rowwise() %>% 
-  reframe(
-    LogId = LogId,
-    id = id,
-    DateTime = seq(min(as_datetime(StartDate)), max(as_datetime(EndDate)), by = "30 sec"),
-    SleepStatus = SleepStatus
-  ) %>% 
-  group_by(DateTime) %>%
-  slice_tail(n = 1) %>%
-  ungroup()
-
-# Step 1: Get unique dates
-unique_days <- exdf %>%
-  mutate(Date = as.Date(DateTime)) %>% 
-  distinct(Date)
-
-# Step 2: Generate a complete sequence of 30-second intervals for each day
-full_intervals <- unique_days %>%
-  rowwise() %>%
-  mutate(DateTime = list(seq.POSIXt(as.POSIXct(paste0(Date, " 00:00:00")), 
-                                    as.POSIXct(paste0(Date, " 23:59:30")), 
-                                    by = "30 sec"))) %>%
-  unnest(cols = c(DateTime))
-
-# Step 3: Merge the full sequence with the original data
-complete_exdf <- full_intervals %>%
-  left_join(exdf, by = "DateTime")
-
-# Step 4: Fill missing SleepStatus values with NA
-complete_exdf <- complete_exdf %>%
-  mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
-  mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
-
-epochs_per_day <- 2880
-
-ex_sri <- calc_sri(complete_exdf, epochs_per_day)
-
-participant <- basename(dataset_path)
-
-result <- 
-  bind_rows(result, 
-            data.frame(participant = participant, sri = ex_sri))
+for (dataset_path in dataset_paths) {
+  exdf <- 
+    arrow::open_dataset(dataset_path) %>% 
+    collect() %>% 
+    arrange(StartDate) %>% 
+    # group_by(LogId, id) %>% 
+    rowwise() %>% 
+    reframe(
+      LogId = LogId,
+      id = id,
+      DateTime = seq(min(as_datetime(StartDate)), max(as_datetime(EndDate)), by = "30 sec"),
+      SleepStatus = SleepStatus
+    ) %>% 
+    group_by(DateTime) %>%
+    slice_tail(n = 1) %>%
+    ungroup()
+  
+  # Step 1: Get unique dates
+  unique_days <- exdf %>%
+    mutate(Date = as.Date(DateTime)) %>% 
+    distinct(Date)
+  
+  # Step 2: Generate a complete sequence of 30-second intervals for each day
+  full_intervals <- unique_days %>%
+    rowwise() %>%
+    mutate(DateTime = list(seq.POSIXt(as.POSIXct(paste0(Date, " 00:00:00")), 
+                                      as.POSIXct(paste0(Date, " 23:59:30")), 
+                                      by = "30 sec"))) %>%
+    unnest(cols = c(DateTime))
+  
+  # Step 3: Merge the full sequence with the original data
+  complete_exdf <- full_intervals %>%
+    left_join(exdf, by = "DateTime")
+  
+  # Step 4: Fill missing SleepStatus values with NA
+  complete_exdf <- complete_exdf %>%
+    mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
+    mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
+  
+  epochs_per_day <- 2880
+  
+  ex_sri <- calc_sri(complete_exdf, epochs_per_day)
+  
+  participant <- basename(dataset_path)
+  
+  result <- 
+    bind_rows(result, 
+              data.frame(participant = participant, sri = ex_sri))
+}
 tictoc::toc()
-
-# Assuming sleeplogs_df has a column 'SleepStatus' (1 = sleep, 0 = wake)
-# Group data by ParticipantIdentifier and calculate SRI
-sri_results <- 
-  merged_df_unique %>%
-  arrange(ParticipantIdentifier, Date, SleepStartTime) %>%  # Ensure the data is sorted correctly
-  group_by(ParticipantIdentifier) %>%
-  summarise(
-    SRI = sri(SleepStatus, epochs_per_day = 2880)
-  )
 
 # Weekly statistics
 weekly_stats <- 
@@ -146,5 +138,10 @@ weekly_stats <-
   )
 
 # All-time statistics
-alltime_stats
+alltime_stats <-
+  list(
+    alltime = NULL,
+    start3monthspostinfection = NULL,
+    start6monthspostinfection = NULL
+  )
 
