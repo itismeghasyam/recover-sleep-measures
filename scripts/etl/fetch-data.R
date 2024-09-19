@@ -63,6 +63,10 @@ if (!dir.exists(outputDataDirSleepSD)) {
   dir.create(outputDataDirSleepSD)
 }
 
+if (!dir.exists(outputDataDirSRI)) {
+  dir.create(outputDataDirSRI)
+}
+
 if (!dir.exists(outputDataDirTimeInSleepStages)) {
   dir.create(outputDataDirTimeInSleepStages)
 }

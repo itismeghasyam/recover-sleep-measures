@@ -4,9 +4,11 @@ default:
   selectedVarsFileID: syn53503994
   outputDataDir: ./temp-output-data
   outputDataDirSleepSD: ./temp-output-data/sleepSD
+  outputDataDirSRI: ./temp-output-data/sri
   outputDataDirTimeInSleepStages: ./temp-output-data/timeInSleepStages
   outputDataDirPercentSleepStart: ./temp-output-data/percentSleepStart
   dailyMeasuresSynDirId: syn62668988
   sleepSDSynDirId: syn62782378
   timeInSleepStagesSynDirId: syn62782384
   percentSleepStartSynDirId: syn62782401
+  sriSynDirId: syn63389785
