@@ -70,16 +70,16 @@ tictoc::toc()
 
 # rm(merged_df)
 
-calc_sri <- function(complete_exdf, epochs_per_day = 2880) {
+calc_sri <- function(df, epochs_per_day = 2880) {
   200 * mean(
-    complete_exdf$SleepStatus[1:(nrow(complete_exdf) - epochs_per_day)] == 
-      complete_exdf$SleepStatus[(epochs_per_day + 1):nrow(complete_exdf)]
+    df$SleepStatus[1:(nrow(df) - epochs_per_day)] == 
+      df$SleepStatus[(epochs_per_day + 1):nrow(df)]
   ) - 100
 }
 
 calc_sri_parallel <- function(dataset_path) {
   
-  exdf <- 
+  participant_df <- 
     arrow::open_dataset(dataset_path) %>% 
     collect() %>% 
     arrange(StartDate) %>% 
@@ -96,7 +96,7 @@ calc_sri_parallel <- function(dataset_path) {
   
   # Get unique dates
   unique_days <- 
-    exdf %>%
+    participant_df %>%
     mutate(Date = as.Date(DateTime)) %>% 
     distinct(Date)
   
@@ -110,16 +110,16 @@ calc_sri_parallel <- function(dataset_path) {
     unnest(cols = c(DateTime))
   
   # Merge the full sequence with the original data and fill missing SleepStatus values with NA
-  complete_exdf <- full_intervals %>%
-    left_join(exdf, by = "DateTime") %>% 
+  complete_df <- full_intervals %>%
+    left_join(participant_df, by = "DateTime") %>% 
     mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
-  ex_sri <- calc_sri(complete_exdf, epochs_per_day = 2880)
+  participant_sri <- calc_sri(complete_df, epochs_per_day = 2880)
   
   participant <- basename(dataset_path)
   
-  return(data.frame(participant = participant, sri = ex_sri))
+  return(data.frame(participant = participant, sri = participant_sri))
 }
 
 result <- data.frame(participant = character(), sri = numeric())
