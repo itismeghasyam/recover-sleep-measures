@@ -64,11 +64,11 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
   participant_sri <- calc_sri(complete_df, epochs_per_day = 2880)
   
   # Unscale SRI based on implementation in github.com/mengelhard/sri
-  unscaled_sri <- (sri + 100) / 200
+  unscaled_sri <- (participant_sri + 100) / 200
   
   participant <- basename(dataset_path)
   
-  return(data.frame("ParticipantIdentifier" = participant, sri = participant_sri, unscaled_sri = unscaled_sri))
+  return(data.frame("ParticipantIdentifier" = participant, unscaled_sri = unscaled_sri, sri = participant_sri))
 }
 
 # Function to calculate weekly SRI for each participant
@@ -77,7 +77,7 @@ calc_weekly_sri <- function(df, epochs_per_day = 2880) {
   # Group data by week
   df <- 
     df %>%
-    mutate(Week = floor_date(DateTime, unit = "week"))
+    mutate(Week = as.Date(floor_date(DateTime, unit = "week")))
   
   # Calculate SRI for each week
   weekly_sri <- 

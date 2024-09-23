@@ -120,27 +120,41 @@ dataset_paths_first_half <- dataset_paths[1:half_size]
 dataset_paths_second_half <- dataset_paths[(half_size + 1):length(dataset_paths)]
 
 # All-time timescale summarization
-
 # Run the first half of the datasets in parallel
 tictoc::tic()
-results_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel) %>% bind_rows()
+results_first_half <- 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel) %>% 
+  bind_rows()
 tictoc::toc()
 
 # Run the second half of the datasets in parallel
 tictoc::tic()
-results_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel) %>% bind_rows()
+results_second_half <- 
+  future_lapply(
+    dataset_paths_second_half, 
+    calc_sri_parallel) %>% 
+  bind_rows()
 tictoc::toc()
 
 # Combine the results from both halves
-final_results <- bind_rows(results_first_half, results_second_half)
+final_results <- 
+  bind_rows(results_first_half, results_second_half)
 
 # All-time 3 months post-infection results
 results_first_half_post_infection_3 <- 
-  future_lapply(dataset_paths_first_half, calc_sri_parallel, months(3)) %>% 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel, 
+    months(3)) %>% 
   bind_rows()
 
 results_second_half_post_infection_3 <- 
-  future_lapply(dataset_paths_second_half, calc_sri_parallel, months(3)) %>% 
+  future_lapply(
+    dataset_paths_second_half, 
+    calc_sri_parallel, 
+    months(3)) %>% 
   bind_rows()
 
 final_results_post_infection_3 <- 
@@ -148,7 +162,10 @@ final_results_post_infection_3 <-
 
 # All-time 6 months post-infection results
 results_first_half_post_infection_6 <- 
-  future_lapply(dataset_paths_first_half, calc_sri_parallel, months(6)) %>% 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel, 
+    months(6)) %>% 
   bind_rows()
 
 results_second_half_post_infection_6 <- 
@@ -175,7 +192,8 @@ weekly_results_second_half <-
   bind_rows()
 tictoc::toc()
 
-weekly_results <- bind_rows(weekly_results_first_half, weekly_results_second_half)
+weekly_results <- 
+  bind_rows(weekly_results_first_half, weekly_results_second_half)
 
 # Weekly sliding window timescale summarization
 tictoc::tic()
@@ -200,7 +218,8 @@ weekly_sliding_results_second_half <-
   bind_rows()
 tictoc::toc()
 
-weekly_sliding_results <- bind_rows(weekly_results_first_half, weekly_results_second_half)
+weekly_sliding_results <- 
+  bind_rows(weekly_results_first_half, weekly_results_second_half)
 
 # Weekly timescale results
 weekly_stats <- 
