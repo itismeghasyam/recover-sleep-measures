@@ -389,13 +389,66 @@ weekly_sliding_results <- bind_rows(weekly_results_first_half, weekly_results_se
 weekly_stats <- 
   list(
     weekly = weekly_results,
-    sliding3weeks = weekly_sliding_results
+    sliding = weekly_sliding_results
   )
 
 # All-time statistics
 alltime_stats <-
   list(
     alltime = final_results,
-    start3monthspostinfection = final_results_post_infection_3,
-    start6monthspostinfection = final_results_post_infection_6
+    post_infection_3_months = final_results_post_infection_3,
+    post_infection_6_months = final_results_post_infection_6
   )
+
+# Write output to local dir
+write_csv(
+  x = weekly_stats$weekly, 
+  file = file.path(outputDataDirSRI, "weekly_stats_sri.csv")
+)
+
+write_csv(
+  x = weekly_stats$sliding, 
+  file = file.path(outputDataDirSRI, "weekly_sliding_3_weeks_stats_sri.csv")
+)
+
+write_csv(
+  x = alltime_stats$alltime, 
+  file = file.path(outputDataDirSRI, "alltime_stats_sri.csv")
+)
+
+write_csv(
+  x = alltime_stats$post_infection_3_months, 
+  file = file.path(outputDataDirSRI, "alltime_3_months_post_infection_stats_sri.csv")
+)
+
+write_csv(
+  x = alltime_stats$post_infection_6_months, 
+  file = file.path(outputDataDirSRI, "alltime_6_months_post_infection_stats_sri.csv")
+)
+
+# Store in Synapse
+manifest_path <- file.path(outputDataDirSRI, "output-data-manifest.tsv")
+
+synapserutils::generate_sync_manifest(
+  directory_path = outputDataDirSleepSD,
+  parent_id = sriSynDirId,
+  manifest_path = manifest_path
+)
+
+manifest <- read_tsv(manifest_path)
+
+thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/sri.R"
+
+manifest <-
+  manifest %>%
+  mutate(executed = thisScriptUrl)
+
+write_tsv(manifest, manifest_path)
+
+synclient <- reticulate::import("synapseclient")
+syn_temp <- synclient$Synapse()
+syn_temp$login()
+
+synutils <- reticulate::import("synapseutils")
+synutils$syncToSynapse(syn = syn_temp, manifestFile = manifest_path)
+
