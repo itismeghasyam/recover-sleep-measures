@@ -172,7 +172,7 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
   # Calculate SRI
-  sri <- calc_sri(complete_df, epochs_per_day = 2880)
+  participant_sri <- calc_sri(complete_df, epochs_per_day = 2880)
   
   # Unscale SRI based on implementation in github.com/mengelhard/sri
   unscaled_sri <- (sri + 100) / 200
@@ -227,10 +227,105 @@ results_second_half_post_infection_6 <-
 final_results_post_infection_6 <- 
   bind_rows(results_first_half_post_infection_6, results_second_half_post_infection_6)
 
+
+# Function to calculate weekly SRI for each participant
+calc_weekly_sri <- function(df, epochs_per_day = 2880) {
+  
+  # Group data by week
+  df <- 
+    df %>%
+    mutate(Week = floor_date(DateTime, unit = "week"))
+  
+  # Calculate SRI for each week
+  weekly_sri <- 
+    df %>%
+    group_by(Week) %>%
+    summarise(
+      sri = 200 * mean(
+        SleepStatus[1:(n() - epochs_per_day)] == 
+          SleepStatus[(epochs_per_day + 1):n()]
+      ) - 100
+    )
+  
+  return(weekly_sri)
+}
+
+# Adjust calc_sri_parallel to calculate weekly SRI
+calc_sri_parallel_weekly <- function(dataset_path) {
+  
+  # Generate 30-second intervals for each sleep event
+  participant_df <- 
+    arrow::open_dataset(dataset_path) %>% 
+    collect() %>% 
+    arrange(StartDate) %>% 
+    rowwise() %>% 
+    reframe(
+      LogId = LogId,
+      id = id,
+      DateTime = seq(min(as_datetime(StartDate)), max(as_datetime(EndDate)), by = "30 sec"),
+      SleepStatus = SleepStatus
+    ) %>% 
+    group_by(DateTime) %>%
+    slice_tail(n = 1) %>%
+    ungroup()
+  
+  # Get unique dates and generate full 30-second interval sequence for each day
+  unique_days <- 
+    participant_df %>%
+    mutate(Date = as.Date(DateTime)) %>% 
+    distinct(Date)
+  
+  full_intervals <- 
+    unique_days %>%
+    rowwise() %>%
+    mutate(DateTime = list(seq.POSIXt(as.POSIXct(paste0(Date, " 00:00:00")), 
+                                      as.POSIXct(paste0(Date, " 23:59:30")), 
+                                      by = "30 sec"))) %>%
+    unnest(cols = c(DateTime))
+  
+  # Merge with original data and fill missing SleepStatus
+  complete_df <- 
+    full_intervals %>%
+    left_join(participant_df, by = "DateTime") %>% 
+    mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
+    mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
+  
+  # Calculate SRI for each week and add unscaled SRI based on implementation in
+  # github.com/mengelhard/sri
+  weekly_sri <- 
+    calc_weekly_sri(complete_df, epochs_per_day = 2880) %>% 
+    mutate(unscaled_sri = (sri + 100)/200)
+  
+  participant <- basename(dataset_path)
+  
+  return(
+    data.frame(
+      participant = participant, 
+      Week = weekly_sri$Week, 
+      sri = weekly_sri$sri, 
+      unscaled_sri = weekly_sri$unscaled_sri
+    )
+  )
+}
+
+# Run the first half of the datasets in parallel for weekly SRI
+tictoc::tic("Weekly SRI calculation for first half")
+weekly_results_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel_weekly) %>% bind_rows()
+tictoc::toc()
+
+# Run the second half of the datasets in parallel for weekly SRI
+tictoc::tic("Weekly SRI calculation for second half")
+weekly_results_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel_weekly) %>% bind_rows()
+tictoc::toc()
+
+# Combine the weekly results from both halves
+weekly_results <- bind_rows(weekly_results_first_half, weekly_results_second_half)
+
+
 # Weekly statistics
 weekly_stats <- 
   list(
-    weekly = NULL,
+    weekly = weekly_results,
     sliding3weeks = NULL
   )
 
