@@ -179,7 +179,7 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
   
   participant <- basename(dataset_path)
   
-  return(data.frame(participant = participant, sri = participant_sri, unscaled_sri = unscaled_sri))
+  return(data.frame("ParticipantIdentifier" = participant, sri = participant_sri, unscaled_sri = unscaled_sri))
 }
 
 # Split dataset_paths into two halves for processing
@@ -241,17 +241,44 @@ calc_weekly_sri <- function(df, epochs_per_day = 2880) {
     df %>%
     group_by(Week) %>%
     summarise(
-      sri = 200 * mean(
-        SleepStatus[1:(n() - epochs_per_day)] == 
-          SleepStatus[(epochs_per_day + 1):n()]
-      ) - 100
+      unscaled_sri = mean(SleepStatus[1:(n() - epochs_per_day)] == SleepStatus[(epochs_per_day + 1):n()]),
+      sri = 200 * unscaled_sri - 100,
+      .groups = "drop"
     )
   
   return(weekly_sri)
 }
 
+# Function to calculate sliding window weekly SRI for each participant
+calc_weekly_sliding_sri <- function(df, epochs_per_day = 2880, window_size = 3, step_size = 1) {
+  
+  sliding_sri <- 
+    df %>% 
+    arrange(DateTime) %>% 
+    slider::slide_period(
+      .i = .$DateTime,
+      .period = "week",
+      .f = ~summarise(
+        .x, 
+        period_start = as.Date(first(floor_date(DateTime, "week"))),
+        period_end = as.Date(ceiling_date(last(floor_date(DateTime, "week")), "week")),
+        unscaled_sri = mean(SleepStatus[1:(n()-epochs_per_day)]==SleepStatus[(epochs_per_day+1):n()]),
+        sri = 200 * unscaled_sri - 100,
+        .groups = "drop"),
+      .every = step_size,
+      .before = window_size - 1,
+      .complete = FALSE) %>% 
+    bind_rows() %>% 
+    ungroup() %>% 
+    mutate(period_dt = as.numeric(period_end-period_start)) %>% 
+    filter(period_dt==21) %>% 
+    select(-period_dt)
+  
+  return(sliding_sri)
+}
+
 # Adjust calc_sri_parallel to calculate weekly SRI
-calc_sri_parallel_weekly <- function(dataset_path) {
+calc_sri_parallel_weekly <- function(dataset_path, sliding_window = FALSE, window_size = 3, step_size = 1) {
   
   # Generate 30-second intervals for each sleep event
   participant_df <- 
@@ -290,43 +317,79 @@ calc_sri_parallel_weekly <- function(dataset_path) {
     mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
-  # Calculate SRI for each week and add unscaled SRI based on implementation in
-  # github.com/mengelhard/sri
-  weekly_sri <- 
-    calc_weekly_sri(complete_df, epochs_per_day = 2880) %>% 
-    mutate(unscaled_sri = (sri + 100)/200)
+  # Calculate SRI for each week based on implementation in github.com/mengelhard/sri
+  if (sliding_window) {
+    result <- 
+      calc_weekly_sliding_sri(
+        complete_df, 
+        epochs_per_day = 2880, 
+        window_size = window_size, 
+        step_size = step_size
+      )
+  } else {
+    result <- 
+      calc_weekly_sri(complete_df, epochs_per_day = 2880)
+  }
   
   participant <- basename(dataset_path)
   
-  return(
-    data.frame(
-      participant = participant, 
-      Week = weekly_sri$Week, 
-      sri = weekly_sri$sri, 
-      unscaled_sri = weekly_sri$unscaled_sri
-    )
-  )
+  return(bind_cols("ParticipantIdentifier" = participant, result))
 }
 
 # Run the first half of the datasets in parallel for weekly SRI
 tictoc::tic("Weekly SRI calculation for first half")
-weekly_results_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel_weekly) %>% bind_rows()
+weekly_results_first_half <- 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel_weekly) %>% 
+  bind_rows()
 tictoc::toc()
 
 # Run the second half of the datasets in parallel for weekly SRI
 tictoc::tic("Weekly SRI calculation for second half")
-weekly_results_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel_weekly) %>% bind_rows()
+weekly_results_second_half <- 
+  future_lapply(
+    dataset_paths_second_half, 
+    calc_sri_parallel_weekly) %>% 
+  bind_rows()
 tictoc::toc()
 
-# Combine the weekly results from both halves
+# Combine the sliding window weekly results from both halves
 weekly_results <- bind_rows(weekly_results_first_half, weekly_results_second_half)
+
+# Run the first half of the datasets in parallel for sliding window weekly SRI
+tictoc::tic("Sliding window weekly SRI calculation for first half")
+weekly_sliding_results_first_half <- 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel_weekly, 
+    sliding_window = TRUE,
+    window_size = 3, 
+    step_size = 1) %>% 
+  bind_rows()
+tictoc::toc()
+
+# Run the second half of the datasets in parallel for sliding window weekly SRI
+tictoc::tic("Sliding window weekly SRI calculation for second half")
+weekly_sliding_results_second_half <- 
+  future_lapply(
+    dataset_paths_second_half, 
+    calc_sri_parallel_weekly, 
+    sliding_window = TRUE,
+    window_size = 3, 
+    step_size = 1) %>% 
+  bind_rows()
+tictoc::toc()
+
+# Combine the sliding window weekly results from both halves
+weekly_sliding_results <- bind_rows(weekly_results_first_half, weekly_results_second_half)
 
 
 # Weekly statistics
 weekly_stats <- 
   list(
     weekly = weekly_results,
-    sliding3weeks = NULL
+    sliding3weeks = weekly_sliding_results
   )
 
 # All-time statistics
@@ -336,4 +399,3 @@ alltime_stats <-
     start3monthspostinfection = final_results_post_infection_3,
     start6monthspostinfection = final_results_post_infection_6
   )
-
