@@ -99,6 +99,7 @@ tictoc::toc()
 
 # rm(merged_df)
 
+# Based on implementation in github.com/mengelhard/sri
 calc_sri <- function(df, epochs_per_day = 2880) {
   200 * mean(
     df$SleepStatus[1:(nrow(df) - epochs_per_day)] == 
@@ -155,6 +156,8 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
   sri <- calc_sri(complete_df, epochs_per_day = 2880)
+  
+  # Unscale based on implementation in github.com/mengelhard/sri
   unscaled_sri <- (sri + 100) / 200
   
   participant <- basename(dataset_path)
