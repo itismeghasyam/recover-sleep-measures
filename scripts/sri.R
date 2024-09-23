@@ -102,7 +102,7 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
   }
   
   participant_df <- 
-    pre_df
+    pre_df %>% 
     arrange(StartDate) %>% 
     rowwise() %>% 
     reframe(
@@ -136,21 +136,33 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
     mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
-  participant_sri <- calc_sri(complete_df, epochs_per_day = 2880)
+  sri <- calc_sri(complete_df, epochs_per_day = 2880)
+  unscaled_sri <- (sri + 100) / 200
   
   participant <- basename(dataset_path)
   
-  return(data.frame(participant = participant, sri = participant_sri))
+  return(data.frame(participant = participant, sri = participant_sri, unscaled_sri = unscaled_sri))
 }
-
-result <- data.frame(participant = character(), sri = numeric())
 
 dataset_paths <- list.dirs(merged_df_path)
 dataset_paths <- dataset_paths[dataset_paths != merged_df_path]
 
-tictoc::tic("SRI calculation")
-result_alltime <- future_lapply(dataset_paths, calc_sri_parallel) %>% bind_rows()
+half_size <- ceiling(length(dataset_paths) / 2)
+dataset_paths_first_half <- dataset_paths[1:half_size]
+dataset_paths_second_half <- dataset_paths[(half_size + 1):length(dataset_paths)]
+
+# Run the first half of the datasets in parallel
+tictoc::tic("SRI calculation for first half")
+result_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel) %>% bind_rows()
 tictoc::toc()
+
+# Run the second half of the datasets in parallel
+tictoc::tic("SRI calculation for second half")
+result_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel) %>% bind_rows()
+tictoc::toc()
+
+# Combine the results
+final_result <- bind_rows(result_first_half, result_second_half)
 
 # Weekly statistics
 weekly_stats <- 
@@ -162,8 +174,8 @@ weekly_stats <-
 # All-time statistics
 alltime_stats <-
   list(
-    alltime = future_lapply(dataset_paths, calc_sri_parallel) %>% bind_rows(),
-    start3monthspostinfection = future_lapply(dataset_paths, calc_sri_parallel, months(3)) %>% bind_rows(),
-    start6monthspostinfection = future_lapply(dataset_paths, calc_sri_parallel, months(6)) %>% bind_rows()
+    alltime = final_result,
+    start3monthspostinfection = NULL,
+    start6monthspostinfection = NULL
   )
 
