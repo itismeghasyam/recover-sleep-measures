@@ -1,9 +1,12 @@
 source("scripts/etl/fetch-data.R")
 
 library(future.apply)
+
+# Set the number of cores for parallel processing to 75% of available cores
 num_cores <- parallel::detectCores()*0.75
 plan(multisession, workers = num_cores)
 
+# Load and filter infections data from the provided CSV file
 infections <-
   read_csv(readline("Enter path to 'visits' csv file: ")) %>% 
   filter(infect_yn_curr==1) %>% 
@@ -14,6 +17,7 @@ infections <-
   ) %>%
   rename(ParticipantIdentifier = record_id)
 
+# Load fitbit sleeplogs dataset and extract relevant variables
 fitbit_sleeplogs <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "sleeplogs$"))
@@ -38,6 +42,7 @@ sleeplogs_df <-
     IsMainSleep = as.logical(IsMainSleep)
   )
 
+# Load fitbit sleeplogdetails dataset and extract relevant variables
 fitbit_sleeplogdetails <- 
   arrow::open_dataset(
     s3$path(stringr::str_subset(dataset_paths, "sleeplogdetails"))
@@ -48,6 +53,7 @@ sleeplogdetails_vars <-
   filter(str_detect(Export, "sleeplogdetails$")) %>% 
   pull(Variable)
 
+# Preprocess the sleeplogdetails data and join with sleeplogs identifier data
 pre_filtered_df <- 
   fitbit_sleeplogdetails %>% 
   select(all_of(sleeplogdetails_vars)) %>% 
@@ -66,6 +72,8 @@ pre_filtered_df <-
 
 # rm(sleeplogs_df)
 
+# Identify and remove participants with fewer than 2 distinct days of data
+# since SRI needs at least 2 days of data
 participants_to_remove <- 
   pre_filtered_df %>% 
   group_by(ParticipantIdentifier) %>% 
@@ -79,12 +87,15 @@ filtered_df <-
 
 # rm(pre_filtered_df)
 
+# Merge filtered data with infections data for use in calculating SRI on a
+# timescale involving filtering to include only data N months post-infection
 merged_df <- 
   filtered_df %>% 
   left_join(y = infections, by = "ParticipantIdentifier")
 
 # rm(filtered_df)
 
+# Save the data as parquet files partitioned by participant
 merged_df_path <- "./temp-output-data/datasets/merged_df"
 unlink(merged_df_path, recursive = T, force = T)
 dir.create(path = merged_df_path, recursive = T)
@@ -99,6 +110,7 @@ tictoc::toc()
 
 # rm(merged_df)
 
+# Function to calculate Sleep Regularity Index (SRI)
 # Based on implementation in github.com/mengelhard/sri
 calc_sri <- function(df, epochs_per_day = 2880) {
   200 * mean(
@@ -107,8 +119,10 @@ calc_sri <- function(df, epochs_per_day = 2880) {
   ) - 100
 }
 
+# Parallel SRI calculation for a given dataset (optionally filter post-infection)
 calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
   
+  # Filter data post-infection if specified
   if (post_infection) {
     pre_df <- 
       arrow::open_dataset(dataset_path) %>% 
@@ -120,6 +134,7 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
       collect()
   }
   
+  # Generate 30-second intervals for each sleep event
   participant_df <- 
     pre_df %>% 
     arrange(StartDate) %>% 
@@ -156,9 +171,10 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
     mutate(SleepStatus = replace_na(SleepStatus, NA)) %>% 
     mutate(SleepStatus = ifelse(is.na(id) & is.na(SleepStatus), 0, SleepStatus))
   
+  # Calculate SRI
   sri <- calc_sri(complete_df, epochs_per_day = 2880)
   
-  # Unscale based on implementation in github.com/mengelhard/sri
+  # Unscale SRI based on implementation in github.com/mengelhard/sri
   unscaled_sri <- (sri + 100) / 200
   
   participant <- basename(dataset_path)
@@ -166,6 +182,7 @@ calc_sri_parallel <- function(dataset_path, post_infection = FALSE) {
   return(data.frame(participant = participant, sri = participant_sri, unscaled_sri = unscaled_sri))
 }
 
+# Split dataset_paths into two halves for processing
 dataset_paths <- list.dirs(merged_df_path)
 dataset_paths <- dataset_paths[dataset_paths != merged_df_path]
 
@@ -183,7 +200,7 @@ tictoc::tic("SRI calculation for second half")
 results_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel) %>% bind_rows()
 tictoc::toc()
 
-# Combine the results
+# Combine the results from both halves
 final_results <- bind_rows(results_first_half, results_second_half)
 
 # All-time 3 months post-infection results
