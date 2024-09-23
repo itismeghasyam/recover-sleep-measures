@@ -48,7 +48,7 @@ sleeplogdetails_vars <-
   filter(str_detect(Export, "sleeplogdetails$")) %>% 
   pull(Variable)
 
-merged_df <- 
+pre_filtered_df <- 
   fitbit_sleeplogdetails %>% 
   select(all_of(sleeplogdetails_vars)) %>% 
   filter(Type=="SleepLevel") %>% 
@@ -62,10 +62,28 @@ merged_df <-
   ungroup() %>% 
   mutate(SleepStatus = ifelse(Value %in% c("wake", "awake"), 0, 1)) %>% 
   select(-Value) %>% 
-  distinct() %>% 
-  left_join(y = infections, by = "ParticipantIdentifier")
+  distinct()
 
 # rm(sleeplogs_df)
+
+participants_to_remove <- 
+  pre_filtered_df %>% 
+  group_by(ParticipantIdentifier) %>% 
+  summarise(n_days = n_distinct(Date)) %>% 
+  filter(n_days<2) %>% 
+  pull(ParticipantIdentifier)
+
+filtered_df <- 
+  pre_filtered_df %>% 
+  filter(!(ParticipantIdentifier %in% participants_to_remove))
+
+# rm(pre_filtered_df)
+
+merged_df <- 
+  filtered_df %>% 
+  left_join(y = infections, by = "ParticipantIdentifier")
+
+# rm(filtered_df)
 
 merged_df_path <- "./temp-output-data/datasets/merged_df"
 unlink(merged_df_path, recursive = T, force = T)
@@ -153,16 +171,16 @@ dataset_paths_second_half <- dataset_paths[(half_size + 1):length(dataset_paths)
 
 # Run the first half of the datasets in parallel
 tictoc::tic("SRI calculation for first half")
-result_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel) %>% bind_rows()
+results_first_half <- future_lapply(dataset_paths_first_half, calc_sri_parallel) %>% bind_rows()
 tictoc::toc()
 
 # Run the second half of the datasets in parallel
 tictoc::tic("SRI calculation for second half")
-result_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel) %>% bind_rows()
+results_second_half <- future_lapply(dataset_paths_second_half, calc_sri_parallel) %>% bind_rows()
 tictoc::toc()
 
 # Combine the results
-final_result <- bind_rows(result_first_half, result_second_half)
+final_results <- bind_rows(results_first_half, results_second_half)
 
 # Weekly statistics
 weekly_stats <- 
@@ -174,7 +192,7 @@ weekly_stats <-
 # All-time statistics
 alltime_stats <-
   list(
-    alltime = final_result,
+    alltime = final_results,
     start3monthspostinfection = NULL,
     start6monthspostinfection = NULL
   )
