@@ -4,7 +4,7 @@ source("scripts/functions/sri.R")
 library(future.apply)
 
 # Set the number of cores for parallel processing to 75% of available cores
-num_cores <- parallel::detectCores()*0.75
+num_cores <- floor(parallel::detectCores()*0.75)
 plan(multisession, workers = num_cores)
 
 # Load and filter infections data from the provided CSV file
