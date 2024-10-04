@@ -97,7 +97,8 @@ thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blo
 
 manifest <-
   manifest %>%
-  mutate(executed = thisScriptUrl)
+  mutate(executed = thisScriptUrl, 
+         used = parquetDirId)
 
 write_tsv(manifest, manifest_path)
 

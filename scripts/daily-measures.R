@@ -203,5 +203,6 @@ f <-
                  "daily_sleep_measures.csv"),
       parent = dailyMeasuresSynDirId
     ), 
-    executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R"
+    executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R",
+    used = parquetDirId
   )

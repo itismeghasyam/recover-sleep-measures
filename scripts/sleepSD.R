@@ -1,7 +1,10 @@
 source("scripts/etl/fetch-data.R")
 
+# Load and filter infections data from the provided CSV file
+visits_file_path <- readline("Enter path to 'visits' csv file: ")
+
 infections <-
-  read_csv(readline("Enter path to 'visits' csv file: ")) %>% 
+  read_csv(visits_file_path) %>% 
   filter(infect_yn_curr==1) %>% 
   group_by(record_id) %>%
   summarise(
@@ -266,7 +269,8 @@ thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blo
 
 manifest <-
   manifest %>%
-  mutate(executed = thisScriptUrl)
+  mutate(executed = thisScriptUrl,
+         used = c(parquetDirId, visits_file_path))
 
 write_tsv(manifest, manifest_path)
 
