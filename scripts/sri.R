@@ -223,11 +223,39 @@ tictoc::toc()
 weekly_sliding_results <- 
   bind_rows(weekly_results_first_half, weekly_results_second_half)
 
+# 6 months (26 weeks) sliding window timescale summarization
+tictoc::tic()
+halfyearly_sliding_results_first_half <- 
+  future_lapply(
+    dataset_paths_first_half, 
+    calc_sri_parallel_weekly, 
+    sliding_window = TRUE,
+    window_size = 26, 
+    step_size = 1) %>% 
+  bind_rows()
+tictoc::toc()
+
+tictoc::tic()
+halfyearly_sliding_results_second_half <- 
+  future_lapply(
+    dataset_paths_second_half, 
+    calc_sri_parallel_weekly, 
+    sliding_window = TRUE,
+    window_size = 26, 
+    step_size = 1) %>% 
+  bind_rows()
+tictoc::toc()
+
+halfyearly_sliding_results <- 
+  bind_rows(halfyearly_results_first_half, halfyearly_results_second_half)
+
+
 # Weekly timescale results
 weekly_stats <- 
   list(
     weekly = weekly_results,
-    sliding = weekly_sliding_results
+    sliding = weekly_sliding_results,
+    halfyearly = halfyearly_sliding_results
   )
 
 # All-time timescale results
@@ -247,6 +275,11 @@ write_csv(
 write_csv(
   x = weekly_stats$sliding, 
   file = file.path(outputDataDirSRI, "weekly_sliding_3_weeks_stats_sri.csv")
+)
+
+write_csv(
+  x = weekly_stats$halfyearly, 
+  file = file.path(outputDataDirSRI, "weekly_sliding_26_weeks_stats_sri.csv")
 )
 
 write_csv(

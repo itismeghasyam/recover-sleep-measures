@@ -91,7 +91,37 @@ weekly_stats <-
           bind_rows() %>% 
           ungroup() %>% 
           mutate(period_dt = as.numeric(period_end - period_start)) %>% 
-          filter(period_dt==21)
+          filter(period_dt==21),
+        sliding26weeks =
+          lapply(unique(merged_data$ParticipantIdentifier), function(pid) {
+            merged_data %>% 
+              filter(ParticipantIdentifier==pid) %>%
+              group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>% 
+              arrange(Date, .by_group = TRUE) %>% 
+              slider::slide_period(
+                .i = .$WeekStart,
+                .period = "week",
+                .f = ~summarise(
+                  .x, 
+                  sd = psych::circadian.sd(.x$MidSleep, hours = TRUE, na.rm = TRUE)$sd,
+                  count = sum(!is.na(.x$MidSleep)),
+                  .groups = "drop"),
+                .every = 1,
+                .before = 25,
+                .complete = FALSE) %>% 
+              lapply(function(x) {
+                x %>% 
+                  mutate(period_start = first(WeekStart), period_end = as.Date(ceiling_date(last(WeekStart), unit = "week"))) %>% 
+                  select(-WeekStart) %>% 
+                  distinct()
+              }) %>% 
+              bind_rows()
+          }) %>% 
+          bind_rows() %>% 
+          ungroup() %>% 
+          mutate(period_dt = as.numeric(period_end - period_start)) %>% 
+          filter(period_dt==182)
+        
       ),
     duration =
       list(
@@ -132,7 +162,37 @@ weekly_stats <-
           bind_rows() %>% 
           ungroup() %>% 
           mutate(period_dt = as.numeric(period_end - period_start)) %>% 
-          filter(period_dt==21)
+          filter(period_dt==21),
+        sliding26weeks =
+          lapply(unique(merged_data$ParticipantIdentifier), function(pid) {
+            merged_data %>% 
+              filter(ParticipantIdentifier==pid) %>%
+              group_by(ParticipantIdentifier, WeekStart = floor_date(Date, "week")) %>% 
+              arrange(Date, .by_group = TRUE) %>% 
+              slider::slide_period(
+                .i = .$WeekStart,
+                .period = "week",
+                .f = ~summarise(
+                  .x, 
+                  sd = stats::sd(.x$Duration, na.rm = TRUE),
+                  count = sum(!is.na(.x$Duration)),
+                  .groups = "drop"),
+                .every = 1,
+                .before = 25,
+                .complete = FALSE) %>% 
+              lapply(function(x) {
+                x %>% 
+                  mutate(period_start = first(WeekStart), period_end = as.Date(ceiling_date(last(WeekStart), unit = "week"))) %>% 
+                  select(-WeekStart) %>% 
+                  distinct()
+              }) %>% 
+              bind_rows()
+          }) %>% 
+          bind_rows() %>% 
+          ungroup() %>% 
+          mutate(period_dt = as.numeric(period_end - period_start)) %>% 
+          filter(period_dt==182)
+        
       )
   )
 
@@ -216,6 +276,12 @@ write_csv(
 )
 
 write_csv(
+  x = weekly_stats$midsleep$sliding26weeks, 
+  file = file.path(outputDataDirSleepSD, "sliding26weeks_stats_midsleep.csv")
+)
+
+
+write_csv(
   x = weekly_stats$duration$weekly, 
   file = file.path(outputDataDirSleepSD, "weekly_stats_duration.csv")
 )
@@ -223,6 +289,11 @@ write_csv(
 write_csv(
   x = weekly_stats$duration$sliding3weeks, 
   file = file.path(outputDataDirSleepSD, "sliding3weeks_stats_duration.csv")
+)
+
+write_csv(
+  x = weekly_stats$duration$sliding26weeks, 
+  file = file.path(outputDataDirSleepSD, "sliding26weeks_stats_duration.csv")
 )
 
 write_csv(
