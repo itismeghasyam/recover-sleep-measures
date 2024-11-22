@@ -32,7 +32,7 @@ getSleepEfficiency <- function(Type,
   
   # Type == 'classic'
   if(Type == 'classic'){
-    sleep_efficiency <- tryCatch(SleepLevelAsleep/sum(SleepLevelAwake,SleepLevelAsleep,SleepLevelRestless,na.rm = T),
+    sleep_efficiency <- tryCatch(sum(SleepLevelAsleep,SleepLevelRestless,na.rm = T)/sum(SleepLevelAwake,SleepLevelAsleep,SleepLevelRestless,na.rm = T),
                                  error = function(e){NA})
   }
   
