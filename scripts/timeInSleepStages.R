@@ -75,12 +75,12 @@ alltime_stats <-
 
 write_csv(
   x = weekly_stats, 
-  file = file.path(outputDataDirTimeInSleepStages, "weekly_stats.csv")
+  file = file.path(outputDataDirTimeInSleepStages, "weekly_stats_time_in_sleep_stages.csv")
 )
 
 write_csv(
   x = alltime_stats, 
-  file = file.path(outputDataDirTimeInSleepStages, "alltime_stats.csv")
+  file = file.path(outputDataDirTimeInSleepStages, "alltime_stats_time_in_sleep_stages.csv")
 )
 
 manifest_path <- file.path(outputDataDirTimeInSleepStages, "output-data-manifest.tsv")
