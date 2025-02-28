@@ -281,13 +281,23 @@ cardio_measures <- fitbit_dailydata %>%
                 CardioScore) %>% 
   dplyr::collect() %>% 
   dplyr::mutate(HeartRateIntradayMinuteCount = as.numeric(HeartRateIntradayMinuteCount)) %>% 
-  dplyr::filter(HeartRateIntradayMinuteCount >= 480) %>% 
+  dplyr::filter(HeartRateIntradayMinuteCount >= 480) %>% # HeartRateIntradayMinuteCount > 0, >= 480
   dplyr::mutate(MinsFairlyActive = as.numeric(MinsFairlyActive)) %>% 
   dplyr::mutate(MinsLightlyActive = as.numeric(MinsLightlyActive)) %>% 
   dplyr::mutate(MinsSedentary = as.numeric(MinsSedentary)) %>% 
   dplyr::mutate(MinsVeryActive = as.numeric(MinsVeryActive)) %>% 
   dplyr::mutate(CombinedActiveMinutes = MinsVeryActive + MinsFairlyActive) %>% 
-  dplyr::mutate(Date = as.Date.character(Date))  
+  dplyr::mutate(Date = as.Date.character(Date))  %>% 
+  dplyr::mutate(BreathingRate = as.numeric(BreathingRate)) %>%
+  dplyr::mutate(SpO2_Avg = as.numeric(SpO2_Avg)) %>%
+  dplyr::mutate(SpO2_Max = as.numeric(SpO2_Max)) %>%
+  dplyr::mutate(SpO2_Min = as.numeric(SpO2_Min)) %>%
+  dplyr::mutate(Hrv_DailyRmssd = as.numeric(Hrv_DailyRmssd)) %>%
+  dplyr::mutate(Hrv_DeepRmssd= as.numeric(Hrv_DeepRmssd)) %>%
+  dplyr::mutate(Steps = as.numeric(Steps)) %>% 
+  dplyr::mutate(RestingHeartRate = as.numeric(RestingHeartRate)) %>% 
+  dplyr::filter(!(Steps == 0))  # Steps are non-zero
+
 
 # cardio score is a mix of range/numbers. convert it to a single number, using mean
 cm <- lapply(cardio_measures$CardioScore, function(x){
@@ -303,23 +313,27 @@ cardio_measures <- cardio_measures %>%
   unique()
 
 ## Apply QA/QC based on https://sagebionetworks.jira.com/browse/RMHDR-242
+## Remove only 0 Steps rows, rest keep them but don't include NA in means
+# aa_old <- cardio_measures
 cardio_measures <- cardio_measures %>% 
-  dplyr::mutate(BreathingRate = as.numeric(BreathingRate)) %>% 
-  dplyr::mutate(SpO2_Avg = as.numeric(SpO2_Avg)) %>% 
-  dplyr::mutate(SpO2_Max = as.numeric(SpO2_Max)) %>% 
-  dplyr::mutate(SpO2_Min = as.numeric(SpO2_Min)) %>% 
-  dplyr::mutate(Hrv_DailyRmssd = as.numeric(Hrv_DailyRmssd)) %>% 
-  dplyr::mutate(Hrv_DeepRmssd= as.numeric(Hrv_DeepRmssd)) %>% 
-  dplyr::filter(!(Steps == 0)) %>% # Steps are non-zero
-  dplyr::filter(MinsFairlyActive <= 1440) %>% # Mins active caps out at 1440
-  dplyr::filter(MinsLightlyActive <= 1440) %>% # Mins active caps out at 1440
-  dplyr::filter(MinsSedentary <= 1440) %>% # Mins active caps out at 1440
-  dplyr::filter(MinsVeryActive <= 1440) %>% # Mins active caps out at 1440
-  dplyr::filter(BreathingRate >=4, BreathingRate <= 40 ) %>% 
-  dplyr::filter(SpO2_Avg >= 50, SpO2_Avg <= 100) %>% 
-  dplyr::filter(SpO2_Max >= 50, SpO2_Max <= 100) %>% 
-  dplyr::filter(SpO2_Min >= 50, SpO2_Min <= 100) %>% 
-  dplyr::filter(Hrv_DailyRmssd >= 3, Hrv_DailyRmssd <= 210) 
+  dplyr::rowwise() %>% # Apply QC filters and assgin NA to all vals out of range
+  dplyr::mutate(MinsLightlyActive = ifelse(MinsLightlyActive > 1440 || MinsLightlyActive < 0, NA, MinsLightlyActive)) %>% # Mins active caps out at 1440
+  dplyr::mutate(MinsFairlyActive = ifelse(MinsFairlyActive > 1440 || MinsFairlyActive < 0, NA, MinsFairlyActive)) %>% # Mins active caps out at 1440
+  dplyr::mutate(MinsSedentary = ifelse(MinsSedentary > 1440 || MinsSedentary < 0, NA, MinsSedentary)) %>% # Mins active caps out at 1440
+  dplyr::mutate(MinsVeryActive = ifelse(MinsVeryActive > 1440 || MinsVeryActive < 0, NA, MinsVeryActive)) %>% # Mins active caps out at 1440
+  dplyr::mutate(BreathingRate = ifelse(BreathingRate > 40 || BreathingRate < 4, NA, BreathingRate)) %>% 
+  dplyr::mutate(RestingHeartRate = ifelse(RestingHeartRate > 300 || RestingHeartRate < 25, NA, RestingHeartRate)) %>% 
+  dplyr::mutate(SpO2_Avg = ifelse(SpO2_Avg > 100 || SpO2_Avg < 50, NA, SpO2_Avg)) %>% 
+  dplyr::mutate(SpO2_Min = ifelse(SpO2_Min > 100 || SpO2_Min < 50, NA, SpO2_Min)) %>% 
+  dplyr::mutate(SpO2_Max = ifelse(SpO2_Max > 100 || SpO2_Max < 50, NA, SpO2_Max)) %>% 
+  dplyr::mutate(Hrv_DailyRmssd = ifelse(Hrv_DailyRmssd < 3 || Hrv_DailyRmssd > 210, NA, Hrv_DailyRmssd)) %>% 
+  dplyr::ungroup()
+  # dplyr::filter(BreathingRate >=4, BreathingRate <= 40 ) %>%
+  # dplyr::filter(SpO2_Avg >= 50, SpO2_Avg <= 100) %>% 
+  # dplyr::filter(SpO2_Max >= 50, SpO2_Max <= 100) %>% 
+  # dplyr::filter(SpO2_Min >= 50, SpO2_Min <= 100) %>% 
+  # dplyr::filter(Hrv_DailyRmssd >= 3, Hrv_DailyRmssd <= 210) 
+  
 # no filter for Deep Rmssd, Combined active minutes or Cardio Score
 
 ## Get METS from fitbit intraday table
