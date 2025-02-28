@@ -72,3 +72,39 @@ alltime_stats <-
     .groups = "drop"
   ) %>% 
   ungroup()
+
+write_csv(
+  x = weekly_stats, 
+  file = file.path(outputDataDirTimeInSleepStages, "weekly_stats_time_in_sleep_stages.csv")
+)
+
+write_csv(
+  x = alltime_stats, 
+  file = file.path(outputDataDirTimeInSleepStages, "alltime_stats_time_in_sleep_stages.csv")
+)
+
+manifest_path <- file.path(outputDataDirTimeInSleepStages, "output-data-manifest.tsv")
+
+synapserutils::generate_sync_manifest(
+  directory_path = outputDataDirTimeInSleepStages,
+  parent_id = timeInSleepStagesSynDirId,
+  manifest_path = manifest_path
+)
+
+manifest <- read_tsv(manifest_path)
+
+thisScriptUrl <- "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/timeInSleepStages.R"
+
+manifest <-
+  manifest %>%
+  mutate(executed = thisScriptUrl, 
+         used = parquetDirId)
+
+write_tsv(manifest, manifest_path)
+
+synclient <- reticulate::import("synapseclient")
+syn_temp <- synclient$Synapse()
+syn_temp$login()
+
+synutils <- reticulate::import("synapseutils")
+synutils$syncToSynapse(syn = syn_temp, manifestFile = manifest_path)

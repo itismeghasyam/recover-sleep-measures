@@ -1,6 +1,14 @@
 default:
-  parquetDirID: syn61250818
-  archiveVersion: main/archive/2024-06-13/
+  parquetDirId: syn64135308
+  archiveVersion: main/archive/2024-11-12/
   selectedVarsFileID: syn53503994
   outputDataDir: ./temp-output-data
-  dailyMeasuresSynDirID: syn62668988
+  outputDataDirSleepSD: ./temp-output-data/sleepSD
+  outputDataDirSRI: ./temp-output-data/sri
+  outputDataDirTimeInSleepStages: ./temp-output-data/timeInSleepStages
+  outputDataDirPercentSleepStart: ./temp-output-data/percentSleepStart
+  dailyMeasuresSynDirId: syn62668988
+  sleepSDSynDirId: syn62782378
+  timeInSleepStagesSynDirId: syn62782384
+  percentSleepStartSynDirId: syn62782401
+  sriSynDirId: syn63389785

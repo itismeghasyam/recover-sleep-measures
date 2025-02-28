@@ -15,11 +15,45 @@ vars <-
   filter(str_detect(Export, "sleeplogs$")) %>% 
   pull(Variable)
 
+###  Required functions
+## RMHDR-270 [https://sagebionetworks.jira.com/browse/RMHDR-270]
+getSleepEfficiency <- function(Type,
+                               SleepLevelLight, SleepLevelDeep, SleepLevelRem, SleepLevelWake,
+                               SleepLevelAwake, SleepLevelAsleep, SleepLevelRestless){
+  # we expect all vars to be numeric except Type. So cast them into numeric
+  SleepLevelLight <- as.numeric(SleepLevelLight)
+  SleepLevelDeep <- as.numeric(SleepLevelDeep)
+  SleepLevelRem <- as.numeric(SleepLevelRem)
+  SleepLevelWake <- as.numeric(SleepLevelWake)
+  SleepLevelAwake <- as.numeric(SleepLevelAwake)
+  SleepLevelAsleep <- as.numeric(SleepLevelAsleep)
+  SleepLevelRestless<- as.numeric(SleepLevelRestless)
+  
+  
+  # Type == 'classic'
+  if(Type == 'classic'){
+    sleep_efficiency <- tryCatch(sum(SleepLevelAsleep,SleepLevelRestless,na.rm = T)/sum(SleepLevelAwake,SleepLevelAsleep,SleepLevelRestless,na.rm = T),
+                                 error = function(e){NA})
+  }
+  
+  if(Type == 'stages'){
+    sleep_efficiency <- tryCatch(sum(SleepLevelLight,SleepLevelDeep,SleepLevelRem,na.rm = T)/sum(SleepLevelLight,SleepLevelDeep,SleepLevelRem,SleepLevelWake,na.rm = T),
+                                 error = function(e){NA})
+  }
+  
+  # convert sleep efficiency into percentage and round it to an integer
+  sleep_efficiency <- ifelse(Type %in% c('classic','stages'), round(100*sleep_efficiency), NA)
+  
+  return(sleep_efficiency)
+  
+}
+
+
 # Load the desired subset of the dataset in memory and do some feature 
 # engineering for derived variables
 sleeplogs_df <- 
   fitbit_sleeplogs %>% 
-  select(all_of(c(vars, "LogId"))) %>% 
+  select(all_of(c(vars, "LogId", "Type"))) %>% # need Type for Sleep Efficiency Calculation 
   collect() %>% 
   distinct() %>% 
   mutate(
@@ -35,7 +69,14 @@ sleeplogs_df <-
     SleepEndTime = 
       ((format(SleepEndTime, format = "%H:%M:%S") %>% lubridate::hms()) / lubridate::hours(24))*24,
     MidSleep = 24*lubridate::hms(MidSleep)/lubridate::hours(24)
-  )
+  ) %>% 
+  dplyr::rowwise() %>% 
+  dplyr::mutate(
+    Efficiency_computed = getSleepEfficiency(Type, 
+                                             SleepLevelLight, SleepLevelDeep, SleepLevelRem, SleepLevelWake,
+                                             SleepLevelAwake, SleepLevelAsleep, SleepLevelRestless)
+  ) %>% 
+  dplyr::ungroup()
 
 numEpisodes <-
   sleeplogs_df %>%
@@ -151,8 +192,9 @@ df_joined <-
       SleepStartTime, 
       SleepEndTime, 
       MidSleep, 
-      Efficiency
-      )
+      Efficiency,
+      Efficiency_computed
+    )
   ) %>% 
   left_join(y = numawakenings_logid_filtered, 
             by = join_by("ParticipantIdentifier", "LogId")) %>%
@@ -174,6 +216,7 @@ reduced_to_daily_df <-
     SleepEndTime = psych::circadian.mean(SleepEndTime, na.rm = TRUE),
     MidSleep = psych::circadian.mean(MidSleep, na.rm = TRUE),
     Efficiency = mean(Efficiency, na.rm = TRUE),
+    Efficiency_computed = mean(Efficiency_computed, na.rm = TRUE),
     NumAwakenings = mean(NumAwakenings, na.rm = TRUE),
     remOnsetLatency = as.numeric(mean(remOnsetLatency, na.rm = TRUE)),
     remFragmentationIndex = mean(remFragmentationIndex, na.rm = TRUE),
@@ -200,8 +243,9 @@ f <-
   synapser::synStore(
     synapser::File(
       path = str_subset(list.files(outputDataDir, full.names = T), 
-                 "daily_sleep_measures.csv"),
-      parent = dailyMeasuresSynDirID
+                        "daily_sleep_measures.csv"),
+      parent = dailyMeasuresSynDirId
     ), 
-    executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R"
+    executed = "https://github.com/Sage-Bionetworks/recover-sleep-measures/blob/main/scripts/daily-measures.R",
+    used = parquetDirId
   )
