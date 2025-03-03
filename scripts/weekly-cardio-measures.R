@@ -422,7 +422,12 @@ df_avghr <- fitbit_activitylogs %>%
   dplyr::mutate(Date = as.Date.character(StartDate)) %>% 
   dplyr::mutate(weeklydayidentity = 1) %>% 
   dplyr::mutate(AverageHeartRate = as.numeric(AverageHeartRate)) %>% 
-  dplyr::filter(AverageHeartRate != 0)
+  dplyr::filter(AverageHeartRate != 0) %>% 
+  dplyr::filter(AverageHeartRate >= 25) %>% 
+  dplyr::filter(AverageHeartRate <= 300) %>% 
+  dplyr::rowwise() %>% 
+  dplyr::mutate(weeklydayidentity = ifelse(is.na(AverageHeartRate),NA,weeklydayidentity)) %>% 
+  dplyr::ungroup()
 
 ########
 # Cardio measures per day/ per week
