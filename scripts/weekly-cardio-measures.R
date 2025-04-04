@@ -383,7 +383,7 @@ for(current_participant_chunk in participant_ids_chunks){
   temp_df <- temp_df %>% 
     dplyr::mutate(Date = as.Date.character(DateTime)) %>% 
     dplyr::mutate(Mets = as.numeric(Mets)) %>% 
-    dplyr::mutate(Mets = (Mets/10 - 1)) %>%   # https://forum.quantifiedself.com/t/calculating-weekly-met-minutes-by-fitbit-data/3977/6
+    dplyr::mutate(Mets = (Mets/10)) %>%   # https://forum.quantifiedself.com/t/calculating-weekly-met-minutes-by-fitbit-data/3977/6
     dplyr::group_by(ParticipantIdentifier, Date) %>% 
     dplyr::summarise(MetsOverDay = sum(Mets, na.rm = T),
                      nRecMets = n()) %>% 
