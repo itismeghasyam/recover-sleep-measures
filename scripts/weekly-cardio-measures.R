@@ -383,6 +383,7 @@ for(current_participant_chunk in participant_ids_chunks){
   temp_df <- temp_df %>% 
     dplyr::mutate(Date = as.Date.character(DateTime)) %>% 
     dplyr::mutate(Mets = as.numeric(Mets)) %>% 
+    dplyr::mutate(Mets = (Mets/10)) %>%   # https://forum.quantifiedself.com/t/calculating-weekly-met-minutes-by-fitbit-data/3977/6
     dplyr::group_by(ParticipantIdentifier, Date) %>% 
     dplyr::summarise(MetsOverDay = sum(Mets, na.rm = T),
                      nRecMets = n()) %>% 
@@ -422,7 +423,12 @@ df_avghr <- fitbit_activitylogs %>%
   dplyr::mutate(Date = as.Date.character(StartDate)) %>% 
   dplyr::mutate(weeklydayidentity = 1) %>% 
   dplyr::mutate(AverageHeartRate = as.numeric(AverageHeartRate)) %>% 
-  dplyr::filter(AverageHeartRate != 0)
+  dplyr::filter(AverageHeartRate != 0) %>% 
+  dplyr::filter(AverageHeartRate >= 25) %>% 
+  dplyr::filter(AverageHeartRate <= 300) %>% 
+  dplyr::rowwise() %>% 
+  dplyr::mutate(weeklydayidentity = ifelse(is.na(AverageHeartRate),NA,weeklydayidentity)) %>% 
+  dplyr::ungroup()
 
 ########
 # Cardio measures per day/ per week
